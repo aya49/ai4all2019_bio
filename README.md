@@ -5,7 +5,7 @@
 official site: https://www.sfu.ca/computing/inventthefuture.html
 
 meetings
-- 2019-05-09 15:00 @ ASB9898 mentor's startup meeting ([ppt](ITF2019-MentorWelcome.pptx), 
+- 2019-05-09 15:00 mentor's startup meeting ([ppt](ITF2019-MentorWelcome.pptx), 
 [pdf](ITF2019-MentorWelcome.pdf), [project ideas](https://sfu-db.github.io/bigdata-cmpt733/final-project-sp19.html))
 - 2019-05-17 11:00 project pitch ([bio ideas](https://docs.google.com/document/d/1v7Q5Cw732rBZHirZqWpQawUZO749UbMYdlv1ElbI2ZI/edit?usp=sharing))
 - 2019-05-28 refined project pitch
