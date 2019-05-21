@@ -9,7 +9,7 @@ meetings (vancouver time)
 [pdf](ITF2019-MentorWelcome.pdf), [project ideas](https://sfu-db.github.io/bigdata-cmpt733/final-project-sp19.html))
 - 2019-05-17 11:00 project pitch ([bio ideas](https://docs.google.com/document/d/1v7Q5Cw732rBZHirZqWpQawUZO749UbMYdlv1ElbI2ZI/edit?usp=sharing))
 - 2019-05-22 10:00 pregnancy project webinar https://zoom.us/j/812397944 ([more info](https://www.synapse.org/#!Synapse:syn18380862/discussion/threadId=5365))
-- 2019-05-28 refined project pitch
+- 2019-05-28 15:30 refined project pitch
 - 2019-06-28 project code ready
 - 2019-07-03 test code on laptops
 - 2019-07-10 install environment
