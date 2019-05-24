@@ -1,5 +1,7 @@
 # ai4all2019_bio
 
+drive: https://drive.google.com/drive/folders/1YmWcwDZ4f5B1ajF90gEeKbE60hN1-uBL?usp=sharing
+
 2 week summer enrichment program for grad 10 & 11 girls
 
 official site: https://www.sfu.ca/computing/inventthefuture.html
