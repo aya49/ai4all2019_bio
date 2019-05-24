@@ -30,7 +30,9 @@ challenge
 - 2019-08-15 sub-challenge 2 open + leaderboard (max 5 submissions)
 - 2019-12-05 sub-challenge 2 deadline for submission; 2020-01-03 results announced
 
-data: sub-challenge 1
+## project: sub-challenge 1
+
+data
 - input: ```HTA20_RMA/_probeset.RData```
 - output: gestational age in weeks for each sample
 - ```HTA20_RMA/_probeset.RData```: whole blood preprocessed eset_HTA20/_probeset **(32830/925032 gene/probeset x 367 train + 368 test samples)** expression matrix
