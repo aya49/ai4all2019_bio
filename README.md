@@ -73,4 +73,4 @@ data:
 - ```pd.hta20.hs.entrezg_0.0.1.tar.gz```: annotation package used to generate gene level expression data.
 - ```HT20``` folder (not uploaded 47.36gb): 735 raw .CEL files from the HTA 2.0 platform
 
-![train data for sub-challenge 1](sc1_train.png)
+![train data for sub-challenge 1](sc1_train.PNG)
