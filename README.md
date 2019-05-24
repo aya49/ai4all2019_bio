@@ -2,7 +2,7 @@
 
 invent the future ai4all is a 2 week summer enrichment program for grad 10 & 11 girls
 
-links
+links:
 - drive: https://drive.google.com/drive/folders/1YmWcwDZ4f5B1ajF90gEeKbE60hN1-uBL?usp=sharing
 - challenge site: https://www.synapse.org/#!Synapse:syn18380862
 - official site: https://www.sfu.ca/computing/inventthefuture.html
