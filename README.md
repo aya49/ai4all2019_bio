@@ -39,7 +39,7 @@ purpose: preterm birth (37- weeks of gestation) affects 15mil neonates/year, cos
 
 motivation: currently use last menstrual period (may be inaccurate), ultrasound (costly, less accurate if <14 weeks); gestational age used to time care, schedule/interpret antepartum tests, evaluate fetal growth, prevent preterm births
 
-previous paper: GSE113966 ([pdf](GSE113966.pdf), [supplement](GSE113966_supp.pdf)); this project has
+compared to previous paper: GSE113966 ([pdf](GSE113966.pdf), [supplement](GSE113966_supp.pdf)); this project has
 - larger sample size, 
 - heterogeneous population (1. normal birth, 2. early preeclampsia, 3. spontaneous preterm delivery or rupture membrane), 
 - genome-wide vs targeted gene, 
