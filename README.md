@@ -4,8 +4,9 @@ invent the future ai4all is a 2 week summer enrichment program for grad 10 & 11 
 
 links:
 - drive: https://drive.google.com/drive/folders/1YmWcwDZ4f5B1ajF90gEeKbE60hN1-uBL?usp=sharing
-- challenge site: https://www.synapse.org/#!Synapse:syn18380862
-- official site: https://www.sfu.ca/computing/inventthefuture.html
+- project site: https://www.synapse.org/#!Synapse:syn18380862
+- program site: https://www.sfu.ca/computing/inventthefuture.html
+  - pitches: https://docs.google.com/document/d/1Co6ZALQjFdeEKPGSlvAxB0TqsAt0ZTLrqT8J77VPp2o/edit
 
 
 ## schedule (PST)
@@ -32,7 +33,7 @@ challenge:
 - 2019-12-05 sub-challenge 2 deadline for submission; 2020-01-03 results announced
 
 
-## project: sub-challenge 1
+## project: sub-challenge 1 - gestational age prediction
 
 purpose: preterm birth (37- weeks of gestation) affects 15mil neonates/year, costs US $26bil/year, leading cause of infant morbidity/mortality causing
 
