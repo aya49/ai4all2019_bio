@@ -4,8 +4,8 @@ invent the future ai4all is a 2 week summer enrichment program for grad 10 & 11 
 
 links:
 - drive: https://drive.google.com/drive/folders/1YmWcwDZ4f5B1ajF90gEeKbE60hN1-uBL?usp=sharing
-- project site: https://www.synapse.org/#!Synapse:syn18380862
-- program site: https://www.sfu.ca/computing/inventthefuture.html
+- challenge site: https://www.synapse.org/#!Synapse:syn18380862
+- ai4all sfu site: https://www.sfu.ca/computing/inventthefuture.html
   - pitches: https://docs.google.com/document/d/1Co6ZALQjFdeEKPGSlvAxB0TqsAt0ZTLrqT8J77VPp2o/edit
 
 
@@ -35,22 +35,36 @@ challenge:
 
 ## project: sub-challenge 1 - gestational age prediction
 
-purpose: preterm birth (37- weeks of gestation) affects 15mil neonates/year, costs US $26bil/year, leading cause of infant morbidity/mortality
+### purpose
 
-motivation: currently use last menstrual period (may be inaccurate), ultrasound (costly, less accurate if <14 weeks); gestational age used to time care, schedule/interpret antepartum tests, evaluate fetal growth, prevent preterm births
+Preterm birth (birth on or before 37 weeks of gestation) affects 15 million neonates per year and is the leading cause of infant morbidity and mortality. To understand whether or not a woman and her child is at risk of and design interventions to prevent preterm birth, clinicians require two key information points: gestational age and the condition of the fetus in relation to that gestational age. These help to time care, schedule/interpret antepartum tests, and evaluate fetal growth, and thus possibly prevent preterm birth. 
 
-compared to previous paper: GSE113966 ([pdf](GSE113966.pdf), [supplement](GSE113966_supp.pdf)); this project has
-- larger sample size, 
-- heterogeneous population (1. normal birth, 2. early preeclampsia, 3. spontaneous preterm delivery or rupture membrane), 
-- genome-wide vs targeted gene, 
-- whole-blood vs cell-free mRNA data, etc.
+Gestational age is currently determined by timing a woman’s last menstrual period or by ultrasound. The former is the most reliable metric thus far, but can be inaccurate and subjective based on how a patient self manages her pregnancy. The latter is objective but is costly and less accurate if done prior to 14 weeks of pregnancy. An objective, noninvasive and less costly method to determine gestational age is by analyzing maternal whole-blood transcriptomics.
 
-questions:
-- what maternal whole-blood mRNA's to target (clinical)
-- what genome-wide expression data best: gene, exon/splice junction, isoform level expression
-- what model is best
+Transcriptomics is a technology that studies an organism’s transcriptome. The transcriptome encompassess all the RNA transcripts (more specifically messenger or mRNA’s) created by replicating different genes in the genome. These RNA fragments are subsequently translated into proteins used to perform biological functions. In other words, transcriptomics is a study of how active each gene is in contribution to a biological state based on how many times mRNA fragments mapping to each gene occur within a sample.
 
-data:
+The clinical question here is then: what maternal whole-blood mRNA genes/probe/isoforms can be used to accurately determine gestational age. This result can guide more practical and less expensive whole-blood transcriptomic tests that target specific genes and their expression profiles. Computationally, the questions is then to determine what model can best produce accurate results while maintaining interpretability of which genes or features contribute to those results.
+
+### abstract
+
+This project is based on sub-challenge 1 of the preterm birth prediction (transcriptomics) challenge ([link](https://www.synapse.org/#!Synapse:syn18380862)). It expands on a previous paper (GSE113966 DOI: 10.1126/science.aar3819 [pdf](GSE113966.pdf), [supplement](GSE113966_supp.pdf)) by utilizing a larger data set with heterogeneous patients (samples from women who 1. gave normal birth, 2. had early preeclampsia, and 3. spontaneous preterm delivery or rupture membrane; versus normal birth subjects only), genome-wide (versus targeted gene), whole-blood (versus cell-free mRNA) transcriptomics etc.
+
+The students will be familiarized with the transcriptomics data type, how they can be preprocessed and used to predict a continuous outcome. Students will be able to learn about how machine learning pipelines are engineered, broad machine learning algorithms, and how they can be used in application to real world problems -- in this case to create equal and inclusive quality care for women whom we may not have gestational age information on.
+
+Key Learning Opportunities
+- Data preprocessing: feature selection, dimensionality reduction, de-noising
+- Model construction: for predicting continuous value gestational age in weeks
+- Model evaluation: root mean-square error etc.
+- Interpretation techniques: extract important features and visualize their inter-relations and relation with results
+
+Deliverables
+- Domain knowledge: demonstrate ability to understand and communicate purpose, methods, results, implications, and possible extensions of the project
+- Computational knowledge: recognize generalizability of each method used in pipeline and how they can be engineered and customized for specific data sets
+- Project results: good feels
+
+
+
+### data
 - input: ```HTA20_RMA/_probeset.RData```
 - output: 5 submissions to leaderboard, 1 final submission; continuous 8-42 gestational age in weeks rounded to 1 decimal for test sample
 - evaluation: RMSE (root mean-square error)
