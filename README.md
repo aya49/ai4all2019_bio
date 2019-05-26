@@ -35,7 +35,7 @@ challenge:
 
 ## project: sub-challenge 1 - gestational age prediction
 
-purpose: preterm birth (37- weeks of gestation) affects 15mil neonates/year, costs US $26bil/year, leading cause of infant morbidity/mortality causing
+purpose: preterm birth (37- weeks of gestation) affects 15mil neonates/year, costs US $26bil/year, leading cause of infant morbidity/mortality
 
 motivation: currently use last menstrual period (may be inaccurate), ultrasound (costly, less accurate if <14 weeks); gestational age used to time care, schedule/interpret antepartum tests, evaluate fetal growth, prevent preterm births
 
