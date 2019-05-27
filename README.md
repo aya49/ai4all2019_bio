@@ -64,7 +64,7 @@ Deliverables
 - input: ```HTA20_RMA.RData```
 - output: 5 submissions to leaderboard, 1 final submission; continuous 8-42 gestational age in weeks rounded to 1 decimal for test sample
 - evaluation: RMSE (root mean-square error)
-- ```HTA20_RMA.RData```: maternal whole-blood preprocessed eset_HTA20/_probeset **(32830/925032 gene/probeset x 367 train + 368 test samples)** expression matrix
+- ```HTA20_RMA.RData```: maternal whole-blood preprocessed **(32830/925032 gene/probeset x 367 train + 368 test samples)** expression matrix
   - rownames: ENTREZ-gene(except for “_at” suffix)/probeset IDs
   - colnames: SampleID
 - ```anoSC1_v11_nokey.csv```: sample annotation file with the following columns
@@ -74,13 +74,13 @@ Deliverables
   - Set: name of the source dataset; 
   - Train: 1 for samples to be used for training, 0 for samples to be used for test; 
   - Platform: gene expression platform used to generate the cell files.
-- ```preprocess_data_SC1.R```: generates gene level and probeset (exon and exon-junction) level data HTA20_RMA/_probeset.RData from raw (.CEL) files
+- ```preprocess_data_SC1.R```: generates gene level and probeset (exon and exon-junction) level data ```HTA20_RMA.RData``` from raw (.CEL) files
   - obtained using the RMA implemented in the oligo package of Bioconductor
   - probsets based on a chip definition file generated from the ```pd.hta20.hs.entrezg_0.0.1.tar.gz``` annotation data from http://brainarray.mbni.med.umich.edu; annotation package pd.hta.2.0 (v 3.12.2) from Bioconductor can be used to map probesets to gene identifiers
   - processed separately for each of the 11 experimental batch profiling train + test samples being profiled in each batch
   - then combined across batches 
   - quantile normalized
-  - batch effect removal using the removeBatchEffects from the limma package of Bioconductor
+  - batch effect removal using the ```removeBatchEffects``` from the limma package of Bioconductor
 - ```pd.hta20.hs.entrezg_0.0.1.tar.gz```: annotation package used to generate gene level expression data.
 - ```HT20``` folder (not uploaded 47.36gb): 735 raw .CEL files from the HTA 2.0 platform
 
