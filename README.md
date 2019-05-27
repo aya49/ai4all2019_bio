@@ -9,7 +9,7 @@ links:
   - pitches: https://docs.google.com/document/d/1Co6ZALQjFdeEKPGSlvAxB0TqsAt0ZTLrqT8J77VPp2o/edit
 
 
-## schedule (PST)
+## schedule
 
 meetings:
 - 2019-05-09 15:00 mentor's startup meeting ([ppt](ITF2019-MentorWelcome.pptx), 
