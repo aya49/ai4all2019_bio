@@ -61,10 +61,10 @@ Deliverables
 
 
 ### data
-- input: ```HTA20_RMA/_probeset.RData```
+- input: ```HTA20_RMA.RData```
 - output: 5 submissions to leaderboard, 1 final submission; continuous 8-42 gestational age in weeks rounded to 1 decimal for test sample
 - evaluation: RMSE (root mean-square error)
-- ```HTA20_RMA/_probeset.RData```: maternal whole-blood preprocessed eset_HTA20/_probeset **(32830/925032 gene/probeset x 367 train + 368 test samples)** expression matrix
+- ```HTA20_RMA.RData```: maternal whole-blood preprocessed eset_HTA20/_probeset **(32830/925032 gene/probeset x 367 train + 368 test samples)** expression matrix
   - rownames: ENTREZ-gene(except for “_at” suffix)/probeset IDs
   - colnames: SampleID
 - ```anoSC1_v11_nokey.csv```: sample annotation file with the following columns
