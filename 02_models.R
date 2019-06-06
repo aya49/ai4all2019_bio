@@ -25,7 +25,7 @@ pred_dir =
 
 
 ## load packages
-pkgs = c("stringr", "plyr", "caret")
+pkgs = c("plyr", "barchart", "caret")
 pkgs_ui = setdiff(pkgs, rownames(installed.packages()))
 if (length(pkgs_ui) > 0) install.packages(pkgs_ui, verbose=F)
 sapply(pkgs, require, character.only=T)
