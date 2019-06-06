@@ -15,9 +15,13 @@ rm(list=ls(all=T))
 
 
 #-------- Packages 
+if (!require("Rfast")) install.packages("Rfast")
+if (!require("ggplot2")) install.packages("ggplot2")
+if (!require("randomForest")) install.packages("randomForest")
+
 require(Rfast) #Variance by column s
 require(ggplot2) #Plots
-
+require(randomForest) #Random Forest 
 
 #-------- Loading the dataset
 #RNASEQ data: each row is a gene and each column a patient 
@@ -58,16 +62,12 @@ rm(eset_HTA20)
 # II: Feature Extraction  
 #--------#--------#--------#--------#--------#--------#--------#--------#--------#
 
-#Feature Extraction 
-#1) Removing genes with many missing values
+#-------- 1) Removing genes with many missing values
 #There is no missing values
 #na_count <-sapply(data, function(y) sum(length(which(is.na(y)))))
 #sum(na_count)
 
-#2) Removing genes with lowest variance 
-
-
-#var_gene = colVars(data)
+#-------- 2) Removing genes with lowest variance 
 eliminate = data.frame(col = c(1:dim(data)[2]),var_gene = colVars(data))
 head(eliminate)
 eliminate = subset(eliminate, var_gene<quantile(eliminate$var_gene,0.1))
@@ -75,17 +75,25 @@ dim(data)
 data = subset(data, select = -c(eliminate$col))
 dim(data)
 
-#3) PCA
-genes.pca <- prcomp(data, center = TRUE,scale. = TRUE)
+#--------3) PCA
 #https://www.datacamp.com/community/tutorials/pca-analysis-r
+genes.pca <- prcomp(data, center = TRUE,scale. = TRUE)
 vars <- colVars(genes.pca$x)  
-props <- cumsum(vars / sum(vars))
+props <- data.frame(pc = 1:length(vars),cumprob = cumsum(vars / sum(vars)))
 
 
-plot(props, xlab = 'Components (1-735')
+ggplot(data = props, mapping = aes(x = props$pc,y=props$cumprob))+
+  geom_point()+xlab('PC')+ylab('Cumulative Proportion')+ 
+  theme(panel.background = element_rect(fill = "slategray2"))
 
+write.csv(genes.pca$x[,c(1:500)], 'Data/features_pca.csv', row.names = T)
 
 #4) Random Forest 
+#https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest
+
+
+
+
 #5) Autoencoder 
 
 
