@@ -77,6 +77,8 @@ dim(data)
 
 #--------3) PCA
 #https://www.datacamp.com/community/tutorials/pca-analysis-r
+#Don't need the values to be predicted, only the features
+
 genes.pca <- prcomp(data, center = TRUE,scale. = TRUE)
 vars <- colVars(genes.pca$x)  
 props <- data.frame(pc = 1:length(vars),cumprob = cumsum(vars / sum(vars)))
@@ -88,9 +90,17 @@ ggplot(data = props, mapping = aes(x = props$pc,y=props$cumprob))+
 
 write.csv(genes.pca$x[,c(1:500)], 'Data/features_pca.csv', row.names = T)
 
-#4) Random Forest 
+#--------4) Random Forest 
 #https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest
-
+#https://uc-r.github.io/random_forests
+#It depends on the features and the value to be predicted 
+data1 = data.frame(SampleID=row.names(data), data)
+row.names(data1) = NULL
+#Combining the two datasets 
+data1 = merge(data1, sample[,c(1,2,5)],by.x = 'SampleID',by.y = 'SampleID', all = T)
+#Using only the train dataset to make the feature importance 
+data1 = subset(data1, Train == 1)
+genes.rf = randomForest(x=subset(data1, select = -c(GA,Train,SampleID)), y = data1$GA)
 
 
 
