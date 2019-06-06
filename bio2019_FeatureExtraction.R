@@ -97,16 +97,16 @@ write.csv(genes.pca$x[,c(1:500)], 'Data/features_pca.csv', row.names = T)
 data1 = data.frame(SampleID=row.names(data), data)
 row.names(data1) = NULL
 #Combining the two datasets 
-data1 = merge(data1, sample[,c(1,2,5)],by.x = 'SampleID',by.y = 'SampleID', all = T)
+data1 = merge(sample[,c(1,2,5)],data1,by.x = 'SampleID',by.y = 'SampleID', all = T)
 #Using only the train dataset to make the feature importance 
 data1 = subset(data1, Train == 1)
 data1 = subset(data1, select = -c(Train,SampleID))
 data1 = as.matrix(data1)
-genes.rf = randomForest(formula = GA~., data = data1, ntrees = 50, importance = T )
+genes.rf = randomForest(x=data1[,1],y=data1[,-1],  ntrees = 50, importance = T )
 
 
 
-5) Autoencoder
+#5) Autoencoder
 #https://www.r-bloggers.com/pca-vs-autoencoders-for-dimensionality-reduction/
 #  https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
 
