@@ -100,10 +100,13 @@ row.names(data1) = NULL
 data1 = merge(data1, sample[,c(1,2,5)],by.x = 'SampleID',by.y = 'SampleID', all = T)
 #Using only the train dataset to make the feature importance 
 data1 = subset(data1, Train == 1)
-genes.rf = randomForest(x=subset(data1, select = -c(GA,Train,SampleID)), y = data1$GA)
+data1 = subset(data1, select = -c(Train,SampleID))
+genes.rf = randomForest(formula = GA~., data = data1, ntrees = 50, importance = T )
 
 
 
 #5) Autoencoder 
+#https://www.r-bloggers.com/pca-vs-autoencoders-for-dimensionality-reduction/
+#  https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
 
 
