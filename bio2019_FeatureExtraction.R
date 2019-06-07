@@ -17,14 +17,22 @@ rm(list=ls(all=T))
 #-------- Packages 
 if (!require("Rfast")) install.packages("Rfast")
 if (!require("ggplot2")) install.packages("ggplot2")
-if (!require("randomForest")) install.packages("randomForest")
+#if (!require("randomForest")) install.packages("randomForest")
 if (!require("caret")) install.packages("caret")
+if (!require("e1071")) install.packages("e1071")
+if (!require("ranger")) install.packages("ranger")
+if (!require("dplyr")) install.packages("dplyr")
 
 
 require(Rfast) #Variance by column s
 require(ggplot2) #Plots
 require(caret) #Random Forest 
-require(randomForest)
+#require(randomForest)
+require(e1071)
+require(ranger)
+require(dplyr)
+
+
 
 #-------- Loading the dataset
 #RNASEQ data: each row is a gene and each column a patient 
@@ -117,10 +125,11 @@ set.seed(123)
 #Number randomely variable selected is mtry
 mtry <- sqrt(ncol(data1)-1)
 tunegrid <- expand.grid(.mtry=mtry)
+options(expressions = 5e5)
 PreRF <- train(GA~., 
                     data=data1, 
-                    method='rf', 
-                    metric='Accuracy', 
+                    method='ranger')
+                    , 
                     tuneGrid=tunegrid, 
                     trControl=control)
 
@@ -129,5 +138,7 @@ print(PreRF)
 #5) Autoencoder
 #https://www.r-bloggers.com/pca-vs-autoencoders-for-dimensionality-reduction/
 #  https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
+PreA <- train(GA~.,  data=data1, method = 'dnn')
+
 
 
