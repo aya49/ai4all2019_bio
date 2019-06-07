@@ -115,16 +115,16 @@ data1 = subset(data1, select = -c(Train,SampleID))
 metric <- "Accuracy"
 set.seed(123)
 #Number randomely variable selected is mtry
-mtry <- sqrt(ncol(x))
+mtry <- sqrt(ncol(data1)-1)
 tunegrid <- expand.grid(.mtry=mtry)
-rf_default <- train(Class~., 
-                    data=dataset, 
+PreRF <- train(GA~., 
+                    data=data1, 
                     method='rf', 
                     metric='Accuracy', 
                     tuneGrid=tunegrid, 
                     trControl=control)
 
-print(rf_default)
+print(PreRF)
 
 #5) Autoencoder
 #https://www.r-bloggers.com/pca-vs-autoencoders-for-dimensionality-reduction/
