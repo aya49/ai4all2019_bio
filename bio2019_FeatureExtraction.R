@@ -18,10 +18,13 @@ rm(list=ls(all=T))
 if (!require("Rfast")) install.packages("Rfast")
 if (!require("ggplot2")) install.packages("ggplot2")
 if (!require("randomForest")) install.packages("randomForest")
+if (!require("caret")) install.packages("caret")
+
 
 require(Rfast) #Variance by column s
 require(ggplot2) #Plots
-require(randomForest) #Random Forest 
+require(caret) #Random Forest 
+require(randomForest)
 
 #-------- Loading the dataset
 #RNASEQ data: each row is a gene and each column a patient 
@@ -79,20 +82,27 @@ dim(data)
 #https://www.datacamp.com/community/tutorials/pca-analysis-r
 #Don't need the values to be predicted, only the features
 
-genes.pca <- prcomp(data, center = TRUE,scale. = TRUE)
-vars <- colVars(genes.pca$x)  
-props <- data.frame(pc = 1:length(vars),cumprob = cumsum(vars / sum(vars)))
+#Option 1: slower 
+#genes.pca <- prcomp(data, center = TRUE,scale. = TRUE)
+#vars <- colVars(genes.pca$x)  
+#props <- data.frame(pc = 1:length(vars),cumprob = cumsum(vars / sum(vars)))
+#pca <- train(Class~., data=dataset, method="rf", metric=metric, tuneGrid=tunegrid, trControl=control)
+#set.seed(12)
+#ggplot(data = props, mapping = aes(x = props$pc,y=props$cumprob))+
+#  geom_point()+xlab('PC')+ylab('Cumulative Proportion')+ 
+#  theme(panel.background = element_rect(fill = "slategray2"))
 
+#Option 2: faster
+PrePCA <- preProcess(data,method="pca")
+feat.pca <- predict(PrePCA,data)
+PrePCA
 
-ggplot(data = props, mapping = aes(x = props$pc,y=props$cumprob))+
-  geom_point()+xlab('PC')+ylab('Cumulative Proportion')+ 
-  theme(panel.background = element_rect(fill = "slategray2"))
-
-write.csv(genes.pca$x[,c(1:500)], 'Data/features_pca.csv', row.names = T)
+write.csv(feat.pca, 'Data/features_pca.csv', row.names = T)
 
 #--------4) Random Forest 
 #https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest
 #https://uc-r.github.io/random_forests
+#http://www.rebeccabarter.com/blog/2017-11-17-caret_tutorial/
 #It depends on the features and the value to be predicted 
 data1 = data.frame(SampleID=row.names(data), data)
 row.names(data1) = NULL
@@ -101,10 +111,20 @@ data1 = merge(sample[,c(1,2,5)],data1,by.x = 'SampleID',by.y = 'SampleID', all =
 #Using only the train dataset to make the feature importance 
 data1 = subset(data1, Train == 1)
 data1 = subset(data1, select = -c(Train,SampleID))
-data1 = as.matrix(data1)
-genes.rf = randomForest(x=data1[,1],y=data1[,-1],  ntrees = 50, importance = T )
+#data1 = as.matrix(data1)
+metric <- "Accuracy"
+set.seed(123)
+#Number randomely variable selected is mtry
+mtry <- sqrt(ncol(x))
+tunegrid <- expand.grid(.mtry=mtry)
+rf_default <- train(Class~., 
+                    data=dataset, 
+                    method='rf', 
+                    metric='Accuracy', 
+                    tuneGrid=tunegrid, 
+                    trControl=control)
 
-
+print(rf_default)
 
 #5) Autoencoder
 #https://www.r-bloggers.com/pca-vs-autoencoders-for-dimensionality-reduction/
