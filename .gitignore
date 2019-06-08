@@ -1,7 +1,9 @@
 Data/
+.ipynb_checkpoints/
 
 .Rhistory
 .RData
 .RDataTmp
 .Rproj
 .png
+.ipynb_checkpoints
