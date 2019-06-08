@@ -143,4 +143,5 @@ PreA <- train(GA~.,  data=data1, method = 'dnn',hidden = c(1),
               numepochs = 3, batchsize = 100)
 print(PreA)
 
+save.image()
 
