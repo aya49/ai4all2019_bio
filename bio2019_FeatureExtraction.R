@@ -73,20 +73,15 @@ rm(eset_HTA20)
 # II: Feature Extraction  
 #--------#--------#--------#--------#--------#--------#--------#--------#--------#
 
-#-------- 1) Removing genes with many missing values
-#There is no missing values
-#na_count <-sapply(data, function(y) sum(length(which(is.na(y)))))
-#sum(na_count)
-
-#-------- 2) Removing genes with lowest variance 
+#-------- 1) Removing genes with lowest variance 
 eliminate = data.frame(col = c(1:dim(data)[2]),var_gene = colVars(data))
 head(eliminate)
-eliminate = subset(eliminate, var_gene<quantile(eliminate$var_gene,0.1))
+eliminate = subset(eliminate, var_gene<quantile(eliminate$var_gene,0.3))
 dim(data)
 data = subset(data, select = -c(eliminate$col))
 dim(data)
 
-#--------3) PCA
+#--------2) PCA
 #https://www.datacamp.com/community/tutorials/pca-analysis-r
 #Don't need the values to be predicted, only the features
 
@@ -106,12 +101,7 @@ feat.pca <- predict(PrePCA,data)
 PrePCA
 
 write.csv(feat.pca, 'Data/features_pca.csv', row.names = T)
-
-#--------4) Random Forest 
-#https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest
-#https://uc-r.github.io/random_forests
-#http://www.rebeccabarter.com/blog/2017-11-17-caret_tutorial/
-#It depends on the features and the value to be predicted 
+#--------3) Removing elements with low correlation with GA
 data1 = data.frame(SampleID=row.names(data), data)
 row.names(data1) = NULL
 #Combining the two datasets 
@@ -119,6 +109,21 @@ data1 = merge(sample[,c(1,2,5)],data1,by.x = 'SampleID',by.y = 'SampleID', all =
 #Using only the train dataset to make the feature importance 
 data1 = subset(data1, Train == 1)
 data1 = subset(data1, select = -c(Train,SampleID))
+
+eliminate = data.frame(col = c(1:dim(data)[2]),corr = apply(data1[,-1], 2, cor, x =data1$GA))
+eliminate$corr = abs(eliminate$corr)
+eliminate = subset(eliminate, corr<quantile(eliminate$corr,0.3))
+dim(data1)
+data1 = subset(data1, select = -c(eliminate$col))
+dim(data1)
+
+
+
+#--------4) Random Forest 
+#https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest
+#https://uc-r.github.io/random_forests
+#http://www.rebeccabarter.com/blog/2017-11-17-caret_tutorial/
+#It depends on the features and the value to be predicted 
 #data1 = as.matrix(data1)
 metric <- "Accuracy"
 set.seed(123)
@@ -128,17 +133,18 @@ tunegrid <- expand.grid(.mtry=mtry)
 options(expressions = 5e5)
 PreRF <- train(GA~., 
                     data=data1, 
-                    method='ranger')
-                    , 
+                    method='ranger',
                     tuneGrid=tunegrid, 
                     trControl=control)
 
 print(PreRF)
 
+
+
 #5) Autoencoder
 #https://www.r-bloggers.com/pca-vs-autoencoders-for-dimensionality-reduction/
 #  https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
 PreA <- train(GA~.,  data=data1, method = 'dnn')
-
+print(PreA)
 
 
