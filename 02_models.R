@@ -102,7 +102,7 @@ graphics.off()
 
 ## temp data prep (rm bottom 10% var genes)
 # save only high variance genes
-m = m0[,m0vars>quantile(m0vars,0.5) & abs(corsp)>quantile(abs(corsp),0.9) & corsp<quantile(corsp,0.9) & meancount>quantile(meancount,0.3)] # 29547 features, too much?
+m = m0[,m0vars>quantile(m0vars,0.7) & abs(corsp)>quantile(abs(corsp),0.9) & corsp<quantile(corsp,0.9) & meancount>quantile(meancount,0.3)] # 29547 features, too much?
 # # rfe to reduce features random forest (for testing)
 # rfe_res = rfe(m[tr_ind,], meta$GA[tr_ind], sizes=c(1:8), rfeControl=rfeControl(functions=rfFuncs, method="cv", number=10))
 # print(rfe_res)
@@ -163,17 +163,17 @@ pars = list(
                   shrinkage = 0.1,
                   n.minobsinnode = 20),
   # ANFIS=expand.grid(max.iter=c(10,30,60,100)), # adaptive-network-based fuzzy inference system
-  avNNet=expand.grid(size=c(100,500,1000), decay=10^runif(5, min = -5, 1), bag=T),
-  brnn=expand.grid(neurons=c(100,500,1000)),
+  avNNet=expand.grid(size=c(100,200), decay=10^runif(5, min = -5, 1), bag=T),
+  brnn=expand.grid(neurons=c(100,200)),
   enet=expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)),
-  neuralnet=expand.grid(layer1=c(500,1000,2000),layer2=c(100,500,1000),layer3=c(50,100,500)),
+  neuralnet=expand.grid(layer1=c(100,200),layer2=c(100,200),layer3=c(100,200)),
   blackboost=expand.grid(maxdepth=c(1,3,6,10)),
   # xgbDART=expand.grid(nrounds, max_depth, eta, gamma, subsample, colsample_bytree, rate_drop, skip_drop, min_child_weight),
   # xgbLinear=expand.grid(nrounds, lambda, alpha, eta),
   # xgbTree=expand.grid(nrounds, max_depth, eta, gamma, colsample_bytree, min_child_weight, subsample),
-  mlpML=expand.grid(layer1=c(500,1000,2000),layer2=c(100,500,1000),layer3=c(50,100,500)),
-  mlpKerasDropout=expand.grid(size=c(50,200,500), dropout=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear")),
-  mlpKerasDecay=expand.grid(size=c(50,200,500), lambda=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
+  mlpML=expand.grid(layer1=c(100,200),layer2=c(100,200),layer3=c(50,100,500)),
+  mlpKerasDropout=expand.grid(size=c(100,200), dropout=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear")),
+  mlpKerasDecay=expand.grid(size=c(100,200), lambda=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
 )
 
 # models = c("glm","enet") # test
@@ -190,13 +190,15 @@ for (data_path in gsub(".Rdata","",data_paths)) {
   # use lapply/loop to run everything; best RMSE chosen by default
  
   for (model in models) {
-    t2i = NULL
+    try ({
+          t2i = NULL
     if (model%in%names(pars)) {
       t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv, tuneGrid=pars[[model]])
     } else {
       t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv)#, tuneGrid=pars[[model]])
     }
     if (!is.null(t2i))  result0[[data_path]][[model]] = t2i
+    })
   }
 }
 save(result0,file=models_dir)
@@ -244,11 +246,11 @@ df1 = ldply (names(result), function(i) {
 # print(pl)
 # dev.off()
 
-cte = meta$GA[te_ind]
+cte = as.numeric(meta$GA[te_ind])
 preds0 = NULL
 for (data_path in names(result0)) {
   m0 = as.matrix(get(load(paste0(data_dir,"/", data_path,".Rdata"))))
-  class(m0)="numeric"
+  class(m0) = "numeric"
   preds0[[data_path]] = extractPrediction(
     result0[[data_path]], 
     testX=m0[te_ind,], testY=cte, unkX=m0[-tr_ind0,])
