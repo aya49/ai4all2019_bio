@@ -21,9 +21,10 @@ data_dir = paste0(root,"/data") # features directory
 
 ## ouput
 result_dir = paste0(root, "/result"); dir.create(result_dir, showWarnings=F)
-models_dir = paste0(result_dir, "/models.Rdata")
+models_dir = paste0(result_dir, "/models"); dir.create(models_dir, showWarnings=F)
 preds_dir = paste0(result_dir, "/preds.Rdata")
 
+overwrite = F
 
 ## load packages
 libr = function(pkgs) {
@@ -32,7 +33,7 @@ libr = function(pkgs) {
   sapply(pkgs, require, character.only=T)
 }
 libr(c("stringr", "plyr", "lattice", "foreach", "doMC", "Rfast", "caret"))
-no_cores = detectCores()-3
+no_cores = detectCores()-6
 registerDoMC(no_cores)
 
 
@@ -163,23 +164,23 @@ pars = list(
                   shrinkage = 0.1,
                   n.minobsinnode = 20),
   # ANFIS=expand.grid(max.iter=c(10,30,60,100)), # adaptive-network-based fuzzy inference system
-  avNNet=expand.grid(size=c(100,200), decay=10^runif(5, min = -5, 1), bag=T),
-  brnn=expand.grid(neurons=c(100,200)),
+  avNNet=expand.grid(size=c(50,100), decay=10^runif(5, min = -5, 1), bag=T),
+  brnn=expand.grid(neurons=c(50,100)),
   enet=expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)),
-  neuralnet=expand.grid(layer1=c(100,200),layer2=c(100,200),layer3=c(100,200)),
+  neuralnet=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100)),
   blackboost=expand.grid(maxdepth=c(1,3,6,10)),
   # xgbDART=expand.grid(nrounds, max_depth, eta, gamma, subsample, colsample_bytree, rate_drop, skip_drop, min_child_weight),
   # xgbLinear=expand.grid(nrounds, lambda, alpha, eta),
   # xgbTree=expand.grid(nrounds, max_depth, eta, gamma, colsample_bytree, min_child_weight, subsample),
-  mlpML=expand.grid(layer1=c(100,200),layer2=c(100,200),layer3=c(50,100,500)),
-  mlpKerasDropout=expand.grid(size=c(100,200), dropout=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear")),
-  mlpKerasDecay=expand.grid(size=c(100,200), lambda=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
+  mlpML=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100)),
+  mlpKerasDropout=expand.grid(size=c(50,100), dropout=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear")),
+  mlpKerasDecay=expand.grid(size=c(50,100), lambda=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
 )
 
 # models = c("glm","enet") # test
 
 ctr = meta$GA[tr_ind]
-result0 = NULL
+# result0 = NULL
 for (data_path in gsub(".Rdata","",data_paths)) {
   cat(data_path, " ------------------------------------------\n");
   
@@ -188,26 +189,39 @@ for (data_path in gsub(".Rdata","",data_paths)) {
   mtr = m0[tr_ind,]
 
   # use lapply/loop to run everything; best RMSE chosen by default
- 
+  data_path_ = paste0(models_dir,"/",data_path)
+  dir.create(data_path_, showWarnings=F)
   for (model in models) {
-    try ({
-          t2i = NULL
-    if (model%in%names(pars)) {
-      t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv, tuneGrid=pars[[model]])
-    } else {
-      t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv)#, tuneGrid=pars[[model]])
+    fname = paste0(data_path_,"/",model,".Rdata")
+    if (!file.exists(fname) | overwrite) {
+      try ({
+        t2i = NULL
+        if (model%in%names(pars)) {
+          t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv, tuneGrid=pars[[model]])
+        } else {
+          t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv)#, tuneGrid=pars[[model]])
+        }
+        if (!is.null(t2i)) save(t2i, file=fname)
+      })
     }
-    if (!is.null(t2i))  result0[[data_path]][[model]] = t2i
-    })
   }
 }
-save(result0,file=models_dir)
+
 
 
 
 
 ## print training results as table ---------------------------------
-load(models_dir)
+data_dirs = list.dirs(models_dir, full.names=F)
+data_dirs = data_dirs[!data_dirs%in%""]
+result0 = llply(data_dirs, function(data_type) { 
+  models = gsub(".Rdata","",list.files(paste0(models_dir,"/",data_type)))
+  a = llply(models, function(model) 
+    get(load(paste0(models_dir,"/", data_type,"/",model,".Rdata"))) )
+  names(a) = models
+  return(a)
+})
+names(result0) = data_dirs
 
 # cat("min rmse's\n")
 result = unlist(result0,recursive=F)
