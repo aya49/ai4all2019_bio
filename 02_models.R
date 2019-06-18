@@ -21,9 +21,10 @@ data_dir = paste0(root,"/data") # features directory
 
 ## ouput
 result_dir = paste0(root, "/result"); dir.create(result_dir, showWarnings=F)
-models_dir = paste0(result_dir, "/models.Rdata")
+models_dir = paste0(result_dir, "/models"); dir.create(models_dir, showWarnings=F)
 preds_dir = paste0(result_dir, "/preds.Rdata")
 
+overwrite = F
 
 ## load packages
 libr = function(pkgs) {
@@ -31,8 +32,8 @@ libr = function(pkgs) {
   if (length(pkgs_ui) > 0) install.packages(pkgs_ui, verbose=F)
   sapply(pkgs, require, character.only=T)
 }
-libr(c("plyr", "lattice", "foreach", "doMC", "Rfast", "caret"))
-no_cores = detectCores()-3
+libr(c("stringr", "plyr", "lattice", "foreach", "doMC", "Rfast", "caret"))
+no_cores = detectCores()-6
 registerDoMC(no_cores)
 
 
@@ -102,7 +103,7 @@ graphics.off()
 
 ## temp data prep (rm bottom 10% var genes)
 # save only high variance genes
-m = m0[,m0vars>quantile(m0vars,0.3) & abs(corsp)>quantile(abs(corsp),0.5) & corsp<quantile(corsp,0.5)] # 29547 features, too much?
+m = m0[,m0vars>quantile(m0vars,0.7) & abs(corsp)>quantile(abs(corsp),0.9) & corsp<quantile(corsp,0.9) & meancount>quantile(meancount,0.3)] # 29547 features, too much?
 # # rfe to reduce features random forest (for testing)
 # rfe_res = rfe(m[tr_ind,], meta$GA[tr_ind], sizes=c(1:8), rfeControl=rfeControl(functions=rfFuncs, method="cv", number=10))
 # print(rfe_res)
@@ -111,7 +112,7 @@ m = m0[,m0vars>quantile(m0vars,0.3) & abs(corsp)>quantile(abs(corsp),0.5) & cors
 save(m, file=paste0(data_dir,"/raw.Rdata"))
 
 
-## test regression models
+## test regression models ---------------------------------
 models = c("ANFIS","avNNet","bag","bagEarth",
            "bagEarthGCV","bam",        "bartMachine","bayesglm",  
            "blackboost", "blasso",     "blassoAveraged","bridge",    
@@ -163,23 +164,23 @@ pars = list(
                   shrinkage = 0.1,
                   n.minobsinnode = 20),
   # ANFIS=expand.grid(max.iter=c(10,30,60,100)), # adaptive-network-based fuzzy inference system
-  avNNet=expand.grid(size=c(100,500,1000), decay=10^runif(5, min = -5, 1), bag=T),
-  brnn=expand.grid(neurons=c(100,500,1000)),
+  avNNet=expand.grid(size=c(50,100), decay=10^runif(5, min = -5, 1), bag=T),
+  brnn=expand.grid(neurons=c(50,100)),
   enet=expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)),
-  neuralnet=expand.grid(layer1=c(500,1000,2000),layer2=c(100,500,1000),layer3=c(50,100,500)),
+  neuralnet=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100)),
   blackboost=expand.grid(maxdepth=c(1,3,6,10)),
   # xgbDART=expand.grid(nrounds, max_depth, eta, gamma, subsample, colsample_bytree, rate_drop, skip_drop, min_child_weight),
   # xgbLinear=expand.grid(nrounds, lambda, alpha, eta),
   # xgbTree=expand.grid(nrounds, max_depth, eta, gamma, colsample_bytree, min_child_weight, subsample),
-  mlpML=expand.grid(layer1=c(500,1000,2000),layer2=c(100,500,1000),layer3=c(50,100,500)),
-  mlpKerasDropout=expand.grid(size=c(50,200,500), dropout=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear")),
-  mlpKerasDecay=expand.grid(size=c(50,200,500), lambda=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
+  mlpML=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100)),
+  mlpKerasDropout=expand.grid(size=c(50,100), dropout=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear")),
+  mlpKerasDecay=expand.grid(size=c(50,100), lambda=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
 )
 
-models = c("glm","enet") # test
+# models = c("glm","enet") # test
 
 ctr = meta$GA[tr_ind]
-result0 = NULL
+# result0 = NULL
 for (data_path in gsub(".Rdata","",data_paths)) {
   cat(data_path, " ------------------------------------------\n");
   
@@ -188,37 +189,58 @@ for (data_path in gsub(".Rdata","",data_paths)) {
   mtr = m0[tr_ind,]
 
   # use lapply/loop to run everything; best RMSE chosen by default
- 
+  data_path_ = paste0(models_dir,"/",data_path)
+  dir.create(data_path_, showWarnings=F)
   for (model in models) {
-    t2i = NULL
-    if (model%in%names(pars)) {
-      t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv, tuneGrid=pars[[model]])
-    } else {
-      t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv)#, tuneGrid=pars[[model]])
+    fname = paste0(data_path_,"/",model,".Rdata")
+    if (!file.exists(fname) | overwrite) {
+      try ({
+        t2i = NULL
+        if (model%in%names(pars)) {
+          t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv, tuneGrid=pars[[model]])
+        } else {
+          t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv)#, tuneGrid=pars[[model]])
+        }
+        if (!is.null(t2i)) save(t2i, file=fname)
+      })
     }
-    if (!is.null(t2i))  result0[[data_path]][[model]] = t2i
   }
 }
-save(result0,file=models_dir)
+
 
 
 
 
 ## print training results as table ---------------------------------
-cat("min rmse's\n")
-result = unlist(result0,recursive=F)
-r2 <- llply(1:length(result), function(i) {
-  cat(models[i],": ",  round(result[[i]]$results$RMSE[which.min(result[[i]]$results$RMSE)],4),"\t",  result[[i]]$times$everything[3],"\n")
+data_dirs = list.dirs(models_dir, full.names=F)
+data_dirs = data_dirs[!data_dirs%in%""]
+result0 = llply(data_dirs, function(data_type) { 
+  models = gsub(".Rdata","",list.files(paste0(models_dir,"/",data_type)))
+  a = llply(models, function(model) 
+    get(load(paste0(models_dir,"/", data_type,"/",model,".Rdata"))) )
+  names(a) = models
+  return(a)
 })
+names(result0) = data_dirs
+
+# cat("min rmse's\n")
+result = unlist(result0,recursive=F)
+# r2 = llply(1:length(result), function(i) {
+#   cat(models[i],": ",  round(result[[i]]$results$RMSE[which.min(result[[i]]$results$RMSE)],4),"\t",  result[[i]]$times$everything[3],"\n")
+# })
 
 # resuls to data frame
-df1 <- data.frame(ldply (names(result), function(i) {
-  score = c(result[[i]]$results$RMSE[which.min(result[[i]]$results$RMSE)],
-            as.numeric(result[[i]]$times$everything[3]),
-            result[[i]]$modelInfo$label, i, NA) #gbm
-  if ("bestTune"%in%names(result[[i]])) score[5] = paste0( paste0(names(result[[i]]$bestTune), collapse="."), ": ", paste0(t2[[i]]$bestTune, collapse=".") )
-}), stringsAsFactors=FALSE)
-df1
+df1 = ldply (names(result), function(i) {
+  fm = str_split(i,"[.]")[[1]]
+  score = data.frame(
+    rmse=result[[i]]$results$RMSE[which.min(result[[i]]$results$RMSE)],
+    time=as.numeric(result[[i]]$times$everything[3]),
+    model_=result[[i]]$modelInfo$label, 
+    feature=fm[1], model=fm[2], 
+    par=paste0( paste0(names(result[[i]]$bestTune), collapse="_"), ": ", paste0(result[[i]]$bestTune, collapse="_") )
+, stringsAsFactors=F)
+})
+# df1
 
 
 ## print all results as plots ------------------------------------
@@ -238,15 +260,19 @@ df1
 # print(pl)
 # dev.off()
 
-cte = meta$GA[te_ind]
+cte = as.numeric(meta$GA[te_ind])
 preds0 = NULL
 for (data_path in names(result0)) {
   m0 = as.matrix(get(load(paste0(data_dir,"/", data_path,".Rdata"))))
-  class(m0)="numeric"
-  preds0[[data_path]] = extractPrediction(result0[[data_path]], 
-                                         testX=m0[te_ind,], 
-                                         testY=cte, 
-                                         unkX=m0[-tr_ind0,])
+  class(m0) = "numeric"
+  preds0[[data_path]] = extractPrediction(
+    result0[[data_path]], 
+    testX=m0[te_ind,], testY=cte, unkX=m0[-tr_ind0,])
+}
+save(preds0,file=preds_dir)
+
+load(preds_dir)
+for (pred0n in names(preds0)) {
   # plot graph to compare models
   png(paste0(result_dir,"/",data_path,"_obsvspred.png"))
   plotObsVsPred(preds0[[data_path]])
@@ -256,43 +282,37 @@ for (data_path in names(result0)) {
   # dotplot(caret::resamples(preds0[[data_path]]))
   # graphics.off()
 }
-save(preds0,file=preds_dir)
 
-preds = unlist(preds0,recursive=F)
-train_rmse = ldply(names(preds), function(xi) {
-  x = preds[[xi]]
-  fm = str_split(xi,"[.]")[[1]]
-  return(c(rmse(x$pred[1:length(tr_ind)], ctr), fm[1], fm[length(fm)]))
+# preds = unlist(preds0,recursive=F)
+rmsedf = ldply(names(preds0), function(xi) {
+  x = preds0[[xi]]
+  ldply(unique(x$model), function(mi) {
+    mii = x$model==mi
+    pr = x$pred[mii]
+    ob = x$pred[mii]
+    data.frame(rmse=c(rmse(pr[1:length(tr_ind)], ctr),
+                      rmse(pr[(length(tr_ind)+1):(length(tr_ind)+length(te_ind))], cte),
+                      rmse(pr[1:length(tr_ind0)], meta$GA[append(tr_ind,te_ind)])),
+               feature=rep(xi,3), model=rep(mi,3), type=c("train","test","all"))
+  })
 })
-test_rmse = ldply(names(preds), function(xi) {
-  x = preds[[xi]]
-  fm = str_split(xi,"[.]")[[1]]
-  return(c(rmse(x$pred[(length(tr_ind)+1):(length(tr_ind)+length(te_ind))], cte), fm[1], fm[length(fm)]))
-})
-trte_rmse = ldply(names(preds), function(xi) {
-  x = preds[[xi]]
-  fm = str_split(xi,"[.]")[[1]]
-  return(c(rmse(x$pred[1:length(tr_ind0)], meta$GA[append(tr_ind,te_ind)]), fm[1], fm[length(fm)]))
-})
-
-colnames(trte_rmse) = colnames(train_rmse) = colnames(test_rmse) = c("rmse","feat","model")
 
 png(paste0(result_dir,"/rmse_test.png"))
-pl = barchart(rmse~model, data=test_rmse, groups=feat, 
+pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="test",,drop=F], groups=feature, 
               auto.key = list(columns=2),
               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
               main="test rmse for each model grouped by feature type")
 print(pl)
 graphics.off()
 png(paste0(result_dir,"/rmse_train.png"))
-pl = barchart(rmse~model, data=train_rmse, groups=feat, 
+pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="train",,drop=F], groups=feature, 
               auto.key = list(columns=2),
               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
               main="train rmse for each model grouped by feature type")
 print(pl)
 graphics.off()
 png(paste0(result_dir,"/rmse_trte.png"))
-pl = barchart(rmse~model, data=trte_rmse, groups=feat, 
+pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="all",,drop=F], groups=feature, 
               auto.key = list(columns=2),
               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
               main="all rmse for each model grouped by feature type")
@@ -303,13 +323,20 @@ graphics.off()
 
 
 ## check for outliers ------------------------------------
-trte_diff = ldply(names(preds), function(xi) {
-  x = preds[[xi]]
-  return(data.frame(diff=c(x$pred[1:length(tr_ind0)] - meta$GA[append(tr_ind,te_ind)]), feat.model=rep(xi,length(tr_ind0)), sample=meta$SampleID[append(tr_ind,te_ind)]))
+trte_diff = ldply(names(preds0), function(xi) {
+  x = preds0[[xi]]
+  xdf = ldply(unique(x$model), function(mi) {
+    mii = x$model==mi
+    pr = x$pred[mii]
+    ob = x$pred[mii]
+    mdf = data.frame(diff=c(pr[1:length(tr_ind0)] - meta$GA[append(tr_ind,te_ind)]), feat.model=paste0(rep(xi,length(tr_ind0)), ".", rep(mi,length(tr_ind0))), sample=meta$SampleID[append(tr_ind,te_ind)])
+    return(mdf)
+  })
+  return(xdf)
 })
 
-png(paste0(result_dir,"/diff_trte.png"))
-pl = barchart(abs(diff)~sample, data=trte_diff, groups=feat.model, 
+png(paste0(result_dir,"/diff_outliers.png"), width=5000)
+pl = barchart(abs(diff)~sample, data=trte_diff[order(trte_diff$diff),], groups=feat.model, 
               auto.key = list(columns=5),
               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
               main="all abs(pred-obs) for each sample grouped by feature.model type")
@@ -339,8 +366,8 @@ graphics.off()
 
 
 ## save final results of one model/feature ------------------
-names(preds)
-predno = 1
+feature = "raw"
+model = "enet"
 # finalsol = llply(preds, function(x) x$pred[is.na(x$obs)])
-class_final$GA = round(preds[[predno]]$pred[is.na(preds[[predno]]$obs)],1)
-write.csv(class_final, file=paste0(result_dir,"/final.csv"))
+class_final$GA = round(preds0[[feature]]$pred[is.na(preds0[[feature]]$obs) & preds0[[feature]]$model==model],1)
+write.csv(class_final, file=paste0(result_dir,"/TeamX_SC1_prediction.csv.csv"))
