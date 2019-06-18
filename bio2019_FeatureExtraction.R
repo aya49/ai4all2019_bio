@@ -129,9 +129,9 @@ dim(data1)
 metric <- "Accuracy"
 set.seed(123)
 #Number randomely variable selected is mtry
-PreRF <- train(GA~., data=data1, method='ranger')
-
+PreRF <- train(GA~., data=data1, method='ranger',importance = 'impurity')
 print(PreRF)
+PreRF.i = varImp(PreRF)
 
 
 
@@ -139,8 +139,7 @@ print(PreRF)
 #https://www.r-bloggers.com/pca-vs-autoencoders-for-dimensionality-reduction/
 #  https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
 PreA <- train(GA~.,  data=data1, method = 'dnn',hidden = c(1),
-              activation = 'linear', output = 'linear',
-              numepochs = 3, batchsize = 100)
+              activation = 'linear', numepochs = 3, batchsize = 100)
 print(PreA)
 
 save.image()
