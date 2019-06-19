@@ -22,7 +22,7 @@ if (!require("caret")) install.packages("caret")
 if (!require("e1071")) install.packages("e1071")
 if (!require("ranger")) install.packages("ranger")
 if (!require("dplyr")) install.packages("dplyr")
-if (!require("deepnet")) install.packages("deepnet")
+if (!require("ANN2")) install.packages('ANN2')
 
 
 require(Rfast) #Variance by column s
@@ -32,7 +32,7 @@ require(caret) #Random Forest
 require(e1071)
 require(ranger)
 require(dplyr)
-require(deepnet)
+require(ANN2)
 
 
 #-------- Loading the dataset
@@ -102,6 +102,8 @@ feat.pca <- predict(PrePCA,data)
 PrePCA
 
 write.csv(feat.pca, 'Data/features_pca.csv', row.names = T)
+
+
 #--------3) Removing elements with low correlation with GA
 data1 = data.frame(SampleID=row.names(data), data)
 row.names(data1) = NULL
@@ -132,15 +134,22 @@ set.seed(123)
 PreRF <- train(GA~., data=data1, method='ranger',importance = 'impurity')
 print(PreRF)
 PreRF.i = varImp(PreRF)
+PreRF.i = PreRF.i$importance
+PreRF.i = PreRF.i[order(PreRF.i$Overall, decreasing = T),]
+PreRF.i = PreRF.i[1:500,]
 
+feat.ra = subset(data1, select = c('GA',as.character(PreRF.i$rownames.PreRF.i.)))
+write.csv(feat.ra, 'Data/features_ra.csv', row.names = T)
 
 
 #5) Autoencoder
 #https://www.r-bloggers.com/pca-vs-autoencoders-for-dimensionality-reduction/
-#  https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
-PreA <- train(GA~.,  data=data1, method = 'dnn',hidden = c(1),
-              activation = 'linear', numepochs = 3, batchsize = 100)
-print(PreA)
+#https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
+#https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
+
+#epochs change to 100
+preA = autoencoder(data1[,-1],hidden.layers = c(1000, 500, 1000))
+feat.A = encode(preA, data1[,-1])
+write.csv(feat.A, 'Data/features_a.csv', row.names = T)
 
 save.image()
-
