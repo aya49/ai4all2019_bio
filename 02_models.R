@@ -25,6 +25,7 @@ models_dir = paste0(result_dir, "/models"); dir.create(models_dir, showWarnings=
 preds_dir = paste0(result_dir, "/preds.Rdata")
 
 overwrite = F
+wth = 1500 #png width
 
 ## load packages
 libr = function(pkgs) {
@@ -33,7 +34,7 @@ libr = function(pkgs) {
   sapply(pkgs, require, character.only=T)
 }
 libr(c("stringr", "plyr", "lattice", "foreach", "doMC", "Rfast", "caret"))
-no_cores = detectCores()-6
+no_cores = 9#detectCores()-6
 registerDoMC(no_cores)
 
 
@@ -52,6 +53,8 @@ rmse = function(x,y) sqrt(mean((x-y)^2))
 tr_ind0 = which(meta$Train==1)
 te_ind = sample(tr_ind0, ceiling(length(tr_ind0)/11))
 tr_ind = sample(tr_ind0[!tr_ind0%in%te_ind])
+ctr = as.numeric(meta$GA[tr_ind])
+cte = as.numeric(meta$GA[te_ind])
 # cv_inds = split(tr_ind, cut(seq_along(tr_ind), cvn, labels=F))
 # cv_class = llply(cv_inds, function(is) meta$GA[is])
 # cv = function(m0, cv_inds, cv_class, fun, ...) {
@@ -113,42 +116,102 @@ save(m, file=paste0(data_dir,"/raw.Rdata"))
 
 
 ## test regression models ---------------------------------
-models = c("ANFIS","avNNet","bag","bagEarth",
-           "bagEarthGCV","bam",        "bartMachine","bayesglm",  
-           "blackboost", "blasso",     "blassoAveraged","bridge",    
-           "brnn",       "BstLm",      "bstSm",      "bstTree",   
-           "cforest",    "ctree",      "ctree2",     "cubist",    
-           "DENFIS",     "dnn",        "earth",      "elm",       
-           "enet",       "evtree",     "extraTrees", "FIR.DM",    
-           "foba",       "FS.HGD",     "gam",        "gamboost",  
-           "gamLoess",   "gamSpline",  "gaussprLinear","gaussprPoly",        
-           "gaussprRadial","gbm",        "gbm_h2o",    "gcvEarth",  
-           "GFS.FR.MOGUL","GFS.LT.RS",  "GFS.THRIFT", "glm",       
-           "glmboost",   "glm.nb",     "glmnet",     "glmnet_h2o",
-           "glmStepAIC", "HYFIS",      "icr",        "kernelpls", 
-           "kknn",       "knn",        "krlsPoly",   "krlsRadial",
-           "lars",       "lars2",      "lasso",      "leapBackward",
-           "leapForward","leapSeq",    "lm","lmStepAIC", 
-           "logicBag",   "logreg",     "M5","M5Rules",   
-           "mlp",        "mlpKerasDecay","mlpKerasDropout","mlpML",     
-           "mlpSGD",     "mlpWeightDecay","mlpWeightDecayML","monmlp",    
-           "msaenet",    "mxnet",      "mxnetAdam",  "neuralnet", 
-           "nnet",       "nnls",       "nodeHarvest","null",      
-           "parRF",      "partDSA",    "pcaNNet",    "pcr",       
-           "penalized",  "pls",        "plsRglm",    "ppr",       
-           "qrf",        "qrnn",       "randomGLM",  "ranger",    
-           "rbf",        "rbfDDA",     "Rborist",    "relaxo",    
-           "rf","rfRules",    "ridge",      "rlm",       
-           "rpart",      "rpart1SE",   "rpart2",     "rqlasso",   
-           "rqnc",       "RRF",        "RRFglobal",  "rvmLinear", 
-           "rvmPoly",    "rvmRadial",  "SBC",        "simpls",    
-           "spikeslab",  "spls",       "superpc",    "svmBoundrangeString",
-           "svmExpoString","svmLinear",  "svmLinear2", "svmLinear3",
-           "svmPoly",    "svmRadial",  "svmRadialCost","svmRadialSigma",     
-           "svmSpectrumString","treebag",    "widekernelpls","WM",        
-           "xgbDART",    "xgbLinear",  "xgbTree",    "xyf")
-# models <- unique(modelLookup()[modelLookup()$forReg,c(1)])
-models = models[!models%in%c("M5Rules", "M5", "logicBag", "bartMachine", "elm", "mlpSGD", "mxnet", "mxnetAdam", "extraTrees")]
+models = c(# "ANFIS", # takes too long; RMSE 20
+           #"avNNet","bag",
+           # "bagEarth", # 8.9
+           # "bagEarthGCV", # 8.6; repeat
+           #"bam",        "bartMachine",
+           # "bayesglm", # 10
+           #"blackboost", 
+           "blasso", # 8.4; takes a bit longer 950
+           # "blassoAveraged", # 8.4; repeat
+           "bridge", # 8.4; takes a bit longer 950
+           #"brnn",       "BstLm",      "bstSm",      "bstTree",   
+           #"cforest",    "ctree",      "ctree2",     "cubist",    
+           #"DENFIS",     "dnn",        "earth",      "elm",       
+           "enet", # 8.5      
+           # "evtree",     "extraTrees", "FIR.DM", # no pkg  
+           "foba", # 8.5      
+           # "FS.HGD", # 9
+           # "gam",        "gamboost", "gamLoess",   "gamSpline", # error on run
+           # "gaussprLinear", # 10
+           "gaussprPoly", # 8.3
+           "gaussprRadial", # 8.8
+           # "gbm", # 9
+           # "gbm_h2o",  # error on run
+           # "gcvEarth", # 9.5
+           # "GFS.FR.MOGUL","GFS.LT.RS",  "GFS.THRIFT", # takes too long
+           # "glm", "glm.nb", # 10
+           # "glmboost",  # error on run
+           "glmnet", # 8.5
+           # "glmnet_h2o",  # error on run
+           # "glmStepAIC", # 10
+           # "HYFIS", # takes too long
+           "icr", # 8.4
+           "kernelpls", # 8.5
+           # "kknn",# 9.6       
+           # "knn", # 9       
+           "krlsPoly", # 8.5; takes a bit longer 900
+           "krlsRadial", # 8.5
+           # "lars", # 8.5       
+           "lars2", # 8.5      
+           "lasso", # 8.7     
+           "leapBackward", "leapForward", "leapSeq", # 8.5
+           # "lm","lmStepAIC", # 10
+           # "logicBag",   "logreg", "M5","M5Rules", # no pkg
+           # "mlp", # 10
+           # "mlpKerasDecay","mlpKerasDropout",  # error on run
+           "mlpML", # 8.5
+           "mlpSGD", # error on run
+           # "mlpWeightDecay", # 10 
+           # "mlpWeightDecayML", # 9 
+           # "monmlp", # 10
+           # "msaenet", # 10   
+           # "mxnet",      "mxnetAdam", # no pkg
+           # "neuralnet", # error on run
+           # "nnet", # 26
+           "nnls", # 8.5
+           "nodeHarvest", # 8.6
+           "null", # 8.5
+           # "parRF", # 9      
+           "partDSA", # 8.5
+           # "pcaNNet", # 26   
+           # "pcr", # 8.5
+           # "penalized", # 9
+           "pls",        "plsRglm",    
+           "ppr", "qrf", # 11     
+           # "qrnn", "randomGLM", # takes too long
+           # "ranger", # 9   
+           "rbf", # 8.4       
+           # "rbfDDA", # 27
+           # "Rborist", # takes too long
+           # "relaxo", # 8.7
+           # "rf", #9.7
+           # "rfRules", # error on run
+           # "ridge", # 9.5
+           # "rlm", # error on run       
+           "rpart", # 8.4     
+           # "rpart1SE", # 11  # "rpart2", # 8.6    
+           "rqlasso", # 8.4
+           "rqnc", # 8.4
+           # "RRF",        "RRFglobal", # 9 
+           # "rvmLinear", # 8.6
+           "rvmPoly",    "rvmRadial", # 8.5
+           # "SBC", # 12        
+           "simpls", "spikeslab",  "spls", # 8.5; spls takes a bit longer 950
+           # "superpc", # lowest score 27
+           # "svmBoundrangeString",
+           # "svmExpoString", # error on run
+           # "svmLinear",  "svmLinear2", # 11 # "svmLinear3", # 9
+           "svmPoly",    "svmRadial",  "svmRadialCost","svmRadialSigma", # 8.5
+           # "svmSpectrumString", # error on run
+           # "treebag", # 9.3   
+           "widekernelpls" # 8.5
+           # "WM", # 11
+           # "xgbDART", # extreme gradient boosting is good; "xgbLinear", # takes too long
+           # "xgbTree",    "xyf"
+           )
+# models = unique(modelLookup()[modelLookup()$forReg,c(1)])
 
 pkgs = c("frbs", "brnn", "monomvn", "Cubist", "elasticnet", "fastICA", "lars", "leaps", "MASS", "RWeka", "neuralnet", "rqPen", "nnls", "penalized", "KRLS", "pls", "quantregForest", "qrnn", "rqPen", "kernlab", "relaxo", "foba", "spikeslab", "superpc", "ipred", "e1071", "logicFS", "earth", "bartMachine", "arm", "mboost", "import", "bst", "party", "partykit", "rpart", "randomGLM", "xgboost", "elmNN", "gam", "mgcv", "h2o", "kknn", "LiblineaR", "LogicReg", "nnet", "monmlp", "RSNNS", "msaenet", "FCNN4R", "keras", "mxnet", "partDSA", "plsRglm", "ranger", "Rborist", "randomForest", "extraTrees", "RRF", "kohonen", "spls", "deepnet", "gbm", "evtree", "nodeHarvest")
 pkgs_ui = setdiff(pkgs, rownames(installed.packages())) # c("RWeka", "logicFS", "bartMachine", "elmNN", "FCNN4R", "mxnet", "extraTrees")
@@ -156,30 +219,29 @@ pkgs = pkgs[!pkgs%in%pkgs_ui]
 libr(pkgs)
 
 
-
-# can't be access outside ;w;
+# model parameters to test
 pars = list(
-  gbm=expand.grid(interaction.depth = c(1:5), #3 # gradient booted machine
-                  n.trees = (seq(1,30,3))*50,
-                  shrinkage = 0.1,
-                  n.minobsinnode = 20),
+  # gbm=expand.grid(interaction.depth = c(1:5), #3 # gradient booted machine
+  #                 n.trees = (seq(1,30,3))*50,
+  #                 shrinkage = 0.1,
+  #                 n.minobsinnode = 20),
   # ANFIS=expand.grid(max.iter=c(10,30,60,100)), # adaptive-network-based fuzzy inference system
-  avNNet=expand.grid(size=c(50,100), decay=10^runif(5, min = -5, 1), bag=T),
-  brnn=expand.grid(neurons=c(50,100)),
+  # avNNet=expand.grid(size=c(50,100), decay=10^runif(5, min = -5, 1), bag=T),
+  #brnn=expand.grid(neurons=c(50,100)),
   enet=expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)),
-  neuralnet=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100)),
-  blackboost=expand.grid(maxdepth=c(1,3,6,10)),
+  # neuralnet=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100)),
+  # blackboost=expand.grid(maxdepth=c(1,3,6,10)),
   # xgbDART=expand.grid(nrounds, max_depth, eta, gamma, subsample, colsample_bytree, rate_drop, skip_drop, min_child_weight),
   # xgbLinear=expand.grid(nrounds, lambda, alpha, eta),
   # xgbTree=expand.grid(nrounds, max_depth, eta, gamma, colsample_bytree, min_child_weight, subsample),
-  mlpML=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100)),
-  mlpKerasDropout=expand.grid(size=c(50,100), dropout=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear")),
-  mlpKerasDecay=expand.grid(size=c(50,100), lambda=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
+  mlpML=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100))
+  # mlpKerasDropout=expand.grid(size=c(50,100), dropout=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear")),
+  # mlpKerasDecay=expand.grid(size=c(50,100), lambda=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
 )
+
 
 # models = c("glm","enet") # test
 
-ctr = meta$GA[tr_ind]
 # result0 = NULL
 for (data_path in gsub(".Rdata","",data_paths)) {
   cat(data_path, " ------------------------------------------\n");
@@ -260,7 +322,6 @@ df1 = ldply (names(result), function(i) {
 # print(pl)
 # dev.off()
 
-cte = as.numeric(meta$GA[te_ind])
 preds0 = NULL
 for (data_path in names(result0)) {
   m0 = as.matrix(get(load(paste0(data_dir,"/", data_path,".Rdata"))))
@@ -274,8 +335,8 @@ save(preds0,file=preds_dir)
 load(preds_dir)
 for (pred0n in names(preds0)) {
   # plot graph to compare models
-  png(paste0(result_dir,"/",data_path,"_obsvspred.png"))
-  plotObsVsPred(preds0[[data_path]])
+  png(paste0(result_dir,"/",pred0n,"_obsvspred.png"))
+  plotObsVsPred(preds0[[pred0n]])
   graphics.off()
   
   # png(paste0(result_dir,"/",data_path,"_rmse.png"))
@@ -297,21 +358,21 @@ rmsedf = ldply(names(preds0), function(xi) {
   })
 })
 
-png(paste0(result_dir,"/rmse_test.png"))
+png(paste0(result_dir,"/rmse_test.png"), width=wth)
 pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="test",,drop=F], groups=feature, 
               auto.key = list(columns=2),
               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
               main="test rmse for each model grouped by feature type")
 print(pl)
 graphics.off()
-png(paste0(result_dir,"/rmse_train.png"))
+png(paste0(result_dir,"/rmse_train.png"), width=wth)
 pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="train",,drop=F], groups=feature, 
               auto.key = list(columns=2),
               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
               main="train rmse for each model grouped by feature type")
 print(pl)
 graphics.off()
-png(paste0(result_dir,"/rmse_trte.png"))
+png(paste0(result_dir,"/rmse_trte.png"), width=wth)
 pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="all",,drop=F], groups=feature, 
               auto.key = list(columns=2),
               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
@@ -370,4 +431,4 @@ feature = "raw"
 model = "enet"
 # finalsol = llply(preds, function(x) x$pred[is.na(x$obs)])
 class_final$GA = round(preds0[[feature]]$pred[is.na(preds0[[feature]]$obs) & preds0[[feature]]$model==model],1)
-write.csv(class_final, file=paste0(result_dir,"/TeamX_SC1_prediction.csv.csv"))
+write.csv(class_final, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
