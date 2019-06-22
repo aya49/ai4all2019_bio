@@ -33,7 +33,8 @@ sapply(c(feat_dir, model_dir, result_dir),
 pkgs = c("Rfast", "stringr", "plyr", "dplyr", # var, str_, llply, etc
          "lattice", "ggplot2", # barplot, plots
          "foreach", "doMC", # parallel back-end
-         "caret", "e1071", "ranger", "ANN2", "randomForest") # ml
+         "caret", "e1071", "ranger", "ANN2", "randomForest",
+         "glmnet","RSNNS","plsRglm") # ml
 # pkgs = c("frbs", "brnn", "monomvn", "Cubist", "elasticnet", "fastICA", "lars", "leaps", "MASS", "RWeka", "neuralnet", "rqPen", "nnls", "penalized", "KRLS", "pls", "quantregForest", "qrnn", "rqPen", "kernlab", "relaxo", "foba", "spikeslab", "superpc", "ipred", "e1071", "logicFS", "earth", "bartMachine", "arm", "mboost", "import", "bst", "party", "partykit", "rpart", "randomGLM", "xgboost", "elmNN", "gam", "mgcv", "h2o", "kknn", "LiblineaR", "LogicReg", "nnet", "monmlp", "RSNNS", "msaenet", "FCNN4R", "keras", "mxnet", "partDSA", "plsRglm", "ranger", "Rborist", "randomForest", "extraTrees", "RRF", "kohonen", "spls", "deepnet", "gbm", "evtree", "nodeHarvest")
 pkgs_ui = setdiff(pkgs, rownames(installed.packages()))
 if (length(pkgs_ui) > 0) install.packages(pkgs_ui, verbose=F)
@@ -120,11 +121,11 @@ write.csv(m, file=paste0(feat_dir,"/features_raw.csv"))
 
 ## 1) Removing genes with low variance ------------------------
 eliminate = data.frame(col = c(1:dim(data0)[2]), var_gene = colVars(data0))
-head(eliminate)
+# head(eliminate)
 eliminate = subset(eliminate, var_gene<quantile(eliminate$var_gene, 0.3))
-dim(data0)
+# dim(data0)
 data1 = subset(data0, select = -c(eliminate$col))
-dim(data1)
+# dim(data1)
 
 
 ## 2) Removing elements with low correlation with GA ----------
@@ -162,14 +163,14 @@ write.csv(feat.pca, paste0(feat_dir,'/features_pca.csv'), row.names=T)
 # data2 = as.matrix(data2)
 metric = "Accuracy"
 #Number randomely variable selected is mtry
-PreRF = train(GA~., data=data2, method='ranger',importance = 'impurity')
-print(PreRF)
-PreRF.i = varImp(PreRF)
-PreRF.i = PreRF.i$importance
-PreRF.i = PreRF.i[order(PreRF.i$Overall, decreasing = T),]
-PreRF.i = PreRF.i[1:500,]
+PreRF = caret::train(y=meta$GA[tr_ind0], x=data2[tr_ind0,], method='ranger',importance='impurity')
 
-feat.ra = subset(data2, select = c('GA',as.character(PreRF.i$rownames.PreRF.i.)))
+# print(PreRF)
+PreRF.i = varImp(PreRF)$importance
+# PreRF.i = PreRF.i[order(PreRF.i$Overall, decreasing=T)[1:500],]
+# PreRF.i = PreRF.i[1:500,]
+
+feat.ra = data2[,order(PreRF.i, decreasing=T)[1:500]]
 write.csv(feat.ra, paste0(feat_dir,'/features_ra.csv'), row.names = T)
 
 
@@ -179,11 +180,11 @@ write.csv(feat.ra, paste0(feat_dir,'/features_ra.csv'), row.names = T)
 #https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
 
 #epochs changed to 100
-preA = autoencoder(data2[,-1],hidden.layers = c(1000, 500, 1000))
-feat.A = encode(preA, data2[,-1])
+preA = autoencoder(data2,hidden.layers = c(1000, 500, 1000))
+feat.A = encode(preA, data2)
 write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
 
-save.image()
+# save.image()
 
 
 
@@ -193,8 +194,8 @@ save.image()
 
 ## 0) load features ----------------------------------------
 feat_paths = list.files(feat_dir) # feature paths
-m0s = llply(feat_paths, function(feat_path) {
-  m0 = read.csv(paste0(feat_dir,"/", feat_path))
+m0s = llply(feat_paths, function(xi) {
+  m0 = read.csv(paste0(feat_dir,"/", xi))
   rownames(m0) = m0[,1]
   m0 = as.matrix(m0[,-1])
 })
@@ -202,12 +203,18 @@ names(m0s) = gsub(".csv","",feat_paths)
 
 
 ## 1) prep cvn-fold cross validation & rmse function ----------
-cvn = 10
-tr_ind0 = which(meta$Train==1)
-te_ind = sample(tr_ind0, ceiling(length(tr_ind0)/11))
-tr_ind = sample(tr_ind0[!tr_ind0%in%te_ind])
-ctr = as.numeric(meta$GA[tr_ind])
-cte = as.numeric(meta$GA[te_ind])
+cvinds_path = paste0(root,"/cvinds.Rdata")
+if (file.exists(cvinds_path)) {
+  load(cvinds_path)
+} else {
+  cvn = 10
+  tr_ind0 = which(meta$Train==1)
+  te_ind = sample(tr_ind0, ceiling(length(tr_ind0)/11))
+  tr_ind = sample(tr_ind0[!tr_ind0%in%te_ind])
+  ctr = as.numeric(meta$GA[tr_ind])
+  cte = as.numeric(meta$GA[te_ind])
+  save(cvn,tr_ind0,te_ind,tr_ind,ctr,cte, file=cvinds_path)
+}
 # # cross validation function
 # rmse = function(x,y) sqrt(mean((x-y)^2))
 # cv_inds = split(tr_ind, cut(seq_along(tr_ind), cvn, labels=F))
@@ -353,13 +360,13 @@ pars = list(
 # use lapply/loop to run everything; best RMSE chosen by default
 for (model in models) {
   cat("\n", model, " ------------------------------------------");
-  for (feat_path in names(m0s)) {
-    m0 = m0s[[feat_path]]
+  for (xi in names(m0s)) {
+    m0 = m0s[[xi]]
     mtr = m0[tr_ind,]
     
-    dir.create(paste0(model_dir,"/",feat_path), showWarnings=F)
-    fname = paste0(model_dir,"/",feat_path,"/",model,".Rdata")
-    if (!file.exists(fname) | overwrite) { try ({ cat("\n", feat_path)
+    dir.create(paste0(model_dir,"/",xi), showWarnings=F)
+    fname = paste0(model_dir,"/",xi,"/",model,".Rdata")
+    if (!file.exists(fname) | overwrite) { try ({ cat("\n", xi)
       t2i = NULL
       if (model%in%names(pars)) {
         t2i = caret::train(y=ctr, x=mtr, model, trControl=fitcv, tuneGrid=pars[[model]])
@@ -394,7 +401,7 @@ result = unlist(result0,recursive=F)
 # results to data frame
 df1 = ldply (names(result), function(i) {
   fm = str_split(i,"[.]")[[1]]
-  score = data.frame(
+  data.frame(
     rmse=result[[i]]$results$RMSE[which.min(result[[i]]$results$RMSE)],
     time=as.numeric(result[[i]]$times$everything[3]),
     model_=result[[i]]$modelInfo$label, 
@@ -403,7 +410,7 @@ df1 = ldply (names(result), function(i) {
     , stringsAsFactors=F)
 })
 # df1
-write.csv(df1, file=paste0(result_dir,"/training_results.csv"))
+write.csv(df1, file=paste0(result_dir,"/rmse_train.csv"))
 
 ## 4) print all results as prediction plots -----------------------
 # result = unlist(result0, recursive=F)
@@ -424,25 +431,28 @@ write.csv(df1, file=paste0(result_dir,"/training_results.csv"))
 
 
 ## 4) get test prediction results from models ----------------------
-preds0 = llply(names(result0), function(feat_path) {
-  m0 = m0s[[feat_path]]
-  extractPrediction(
-    result0[[feat_path]], 
-    testX=m0[te_ind,], testY=cte, unkX=m0[-tr_ind0,])
+preds0 = llply(names(result0), function(xi) {
+  m0 = m0s[[xi]]
+  res = extractPrediction(result0[[xi]], 
+    testX=m0[te_ind,], testY=cte)#, unkX=m0[-tr_ind0,]) # some features don't have test data
+  return(res)
 }, .parallel=T)
 names(preds0) = names(result0)
 save(preds0,file=paste0(result_dir,"/preds.Rdata"))
 
 load(paste0(result_dir,"/preds.Rdata"))
-dir.create(paste0(result_dir,"/obsvspred"), showWarnings=F)
+wth = 200
+dir.create(paste0(result_dir,"/obsVSpred"), showWarnings=F)
 for (pred0n in names(preds0)) {
   # plot graph to compare models
-  png(paste0(result_dir,"/obsvspred/",pred0n,".png"))
-  plotObsVsPred(preds0[[pred0n]])
+  png(paste0(result_dir,"/obsVSpred/",pred0n,".png"), 
+      width=wth*length(levels(preds0[[pred0n]]$model)))
+  pl = plotObsVsPred(preds0[[pred0n]])
+  print(pl)
   graphics.off()
   
-  # png(paste0(result_dir,"/",feat_path,"_rmse.png"))
-  # dotplot(caret::resamples(preds0[[feat_path]]))
+  # png(paste0(result_dir,"/",xi,"_rmse.png"))
+  # dotplot(caret::resamples(preds0[[xi]]))
   # graphics.off()
 }
 
@@ -462,27 +472,29 @@ rmsedf = ldply(names(preds0), function(xi) {
                feature=rep(xi,3), model=rep(mi,3), type=c("train","test","all"))
   })
 })
+write.csv(rmsedf, file=paste0(result_dir,"/rmse.csv"))
 
 wth = 2000
+png(paste0(result_dir,"/rmse_all.png"), width=wth)
+par(mfrow=c(3,1))
+pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="all",,drop=F], groups=feature, 
+              auto.key = list(columns=2),
+              cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
+              main="all rmse for each model grouped by feature type")
+print(pl)
+graphics.off()
 png(paste0(result_dir,"/rmse_test.png"), width=wth)
 pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="test",,drop=F], groups=feature, 
               auto.key = list(columns=2),
               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
-              main="test rmse for each model grouped by feature type")
+              main="test")
 print(pl)
 graphics.off()
 png(paste0(result_dir,"/rmse_train.png"), width=wth)
 pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="train",,drop=F], groups=feature, 
               auto.key = list(columns=2),
               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
-              main="train rmse for each model grouped by feature type")
-print(pl)
-graphics.off()
-png(paste0(result_dir,"/rmse_trte.png"), width=wth)
-pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="all",,drop=F], groups=feature, 
-              auto.key = list(columns=2),
-              cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
-              main="all rmse for each model grouped by feature type")
+              main="train")
 print(pl)
 graphics.off()
 
