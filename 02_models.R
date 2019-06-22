@@ -41,7 +41,7 @@ sapply(pkgs, require, character.only=T)
 
 
 ## script options
-no_cores = detectCores()-1 # number of cores to use in parallel
+no_cores = 10#detectCores()-1 # number of cores to use in parallel
 registerDoMC(no_cores)
 
 overwrite = F # overwrite results?
@@ -66,13 +66,12 @@ class_final = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv"))
 data0 = t(get(load(paste0(input_dir,"/HTA20_RMA.RData"))))
 
 
-## data exploration
+## data exploration ----------------------------
 range(data0) # range: 0.9365626 14.2836285
 gid = colnames(data0); head(gid) # genes IDS
 pid = rownames(data0); head(pid) # Patient IDS  
 
-
-## plot stats: mean count, pearson/spearman corr --------------
+# plot stats: mean count, pearson/spearman corr
 datavars = colVars(data0)
 meancount = colMeans(data0)
 meancounto = order(meancount)
@@ -103,27 +102,26 @@ plot(corsp, cex=1-corspp, pch=16,
 graphics.off()
 
 
-## temp data prep (rm bottom 10% var genes)
-# save only high variance genes
-m = data0[,datavars>quantile(datavars,0.3) & abs(corsp)>quantile(abs(corsp),0.3) & corspp<quantile(corspp,0.7)]# & meancount>quantile(meancount,0.2)]
-# # rfe to reduce features random forest (for testing)
-# rfe_res = rfe(m[tr_ind,], meta$GA[tr_ind], sizes=c(1:8), rfeControl=rfeControl(functions=rfFuncs, method="cv", number=10))
-# print(rfe_res)
-# predictors(rfe_res)
-# plot(rfe_res, type=c("g", "o"))
-write.csv(m, file=paste0(feat_dir,"/raw.csv"))
-
-
-
 
 #--------#--------#--------#--------#--------#--------#--------
 # 1: feature extraction ---------------------------------------
 #--------#--------#--------#--------#--------#--------#--------
 
+## temp data prep -------------------------------------------
+# save only high variance genes and those with high sig pearson corr with GA
+m = data0[,datavars>quantile(datavars,0.7) & abs(corsp)>quantile(abs(corsp),0.7) & corspp<quantile(corspp,0.1) & meancount>quantile(meancount,0.5)]
+# # rfe to reduce features random forest
+# rfe_res = rfe(m[tr_ind,], meta$GA[tr_ind], sizes=c(1:8), rfeControl=rfeControl(functions=rfFuncs, method="cv", number=10))
+# print(rfe_res)
+# predictors(rfe_res)
+# plot(rfe_res, type=c("g", "o"))
+write.csv(m, file=paste0(feat_dir,"/features_raw.csv"))
+
+
 ## 1) Removing genes with low variance ------------------------
-eliminate = data.frame(col = c(1:dim(data0)[2]),var_gene = colVars(data0))
+eliminate = data.frame(col = c(1:dim(data0)[2]), var_gene = colVars(data0))
 head(eliminate)
-eliminate = subset(eliminate, var_gene<quantile(eliminate$var_gene,0.3))
+eliminate = subset(eliminate, var_gene<quantile(eliminate$var_gene, 0.3))
 dim(data0)
 data1 = subset(data0, select = -c(eliminate$col))
 dim(data1)
@@ -133,7 +131,7 @@ dim(data1)
 data2 = data.frame(SampleID=row.names(data1), data1)
 row.names(data2) = NULL
 # Combining the two datasets 
-data2 = merge(sample[,c(1,2,5)],data2,by.x = 'SampleID',by.y = 'SampleID', all = T)
+data2 = merge(sample[,c(1,2,5)], data2, by.x = 'SampleID', by.y = 'SampleID', all = T)
 #Using only the train dataset to make the feature importance 
 data2 = subset(data2, Train == 1)
 data2 = subset(data2, select = -c(Train,SampleID))
@@ -144,14 +142,14 @@ eliminate = subset(eliminate, corr<quantile(eliminate$corr,0.3))
 dim(data2)
 data2 = subset(data1, select = -c(eliminate$col))
 dim(data2)
-write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T)
+# write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T)
 
 
 ## 3) PCA -----------------------------------------------------
 # https://www.datacamp.com/community/tutorials/pca-analysis-r
 # Don't need the values to be predicted, only the features
-PrePCA = preProcess(data,method="pca")
-feat.pca = predict(PrePCA,data)
+PrePCA = preProcess(data2,method="pca")
+feat.pca = predict(PrePCA,data2)
 # PrePCA
 write.csv(feat.pca, paste0(feat_dir,'/features_pca.csv'), row.names=T)
 
@@ -162,10 +160,9 @@ write.csv(feat.pca, paste0(feat_dir,'/features_pca.csv'), row.names=T)
 #http://www.rebeccabarter.com/blog/2017-11-17-caret_tutorial/
 # It depends on the features and the value to be predicted 
 # data2 = as.matrix(data2)
-metric <- "Accuracy"
-set.seed(123)
+metric = "Accuracy"
 #Number randomely variable selected is mtry
-PreRF <- train(GA~., data=data2, method='ranger',importance = 'impurity')
+PreRF = train(GA~., data=data2, method='ranger',importance = 'impurity')
 print(PreRF)
 PreRF.i = varImp(PreRF)
 PreRF.i = PreRF.i$importance
@@ -194,8 +191,14 @@ save.image()
 # 2: regression models ----------------------------------------
 #--------#--------#--------#--------#--------#--------#--------
 
-# grab features
-feat_paths = list.files(feat_dir)
+## 0) load features ----------------------------------------
+feat_paths = list.files(feat_dir) # feature paths
+m0s = llply(feat_paths, function(feat_path) {
+  m0 = read.csv(paste0(feat_dir,"/", feat_path))
+  rownames(m0) = m0[,1]
+  m0 = as.matrix(m0[,-1])
+})
+names(m0s) = gsub(".csv","",feat_paths)
 
 
 ## 1) prep cvn-fold cross validation & rmse function ----------
@@ -205,7 +208,7 @@ te_ind = sample(tr_ind0, ceiling(length(tr_ind0)/11))
 tr_ind = sample(tr_ind0[!tr_ind0%in%te_ind])
 ctr = as.numeric(meta$GA[tr_ind])
 cte = as.numeric(meta$GA[te_ind])
-# # cross validation
+# # cross validation function
 # rmse = function(x,y) sqrt(mean((x-y)^2))
 # cv_inds = split(tr_ind, cut(seq_along(tr_ind), cvn, labels=F))
 # cv_class = llply(cv_inds, function(is) meta$GA[is])
@@ -227,9 +230,9 @@ cte = as.numeric(meta$GA[te_ind])
 fitcv = trainControl(method="cv", number=cvn)
 
 
-
 ## 2) test regression models ---------------------------------
 
+# list models to test
 models = c(# "ANFIS", # takes too long; RMSE 20
   #"avNNet","bag",
   # "bagEarth", # 8.9
@@ -275,8 +278,7 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   # "logicBag",   "logreg", "M5","M5Rules", # no pkg
   # "mlp", # 10
   # "mlpKerasDecay","mlpKerasDropout",  # error on run
-  "mlpML", # 8.5
-  "mlpSGD", # error on run
+  # "mlpSGD", # error on run
   # "mlpWeightDecay", # 10 
   # "mlpWeightDecayML", # 9 
   # "monmlp", # 10
@@ -285,7 +287,6 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   # "neuralnet", # error on run
   # "nnet", # 26
   "nnls", # 8.5
-  "nodeHarvest", # 8.6
   "null", # 8.5
   # "parRF", # 9      
   "partDSA", # 8.5
@@ -293,7 +294,7 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   # "pcr", # 8.5
   # "penalized", # 9
   "pls",        "plsRglm",    
-  "ppr", "qrf", # 11     
+  # "ppr", "qrf", # 11     
   # "qrnn", "randomGLM", # takes too long
   # "ranger", # 9   
   "rbf", # 8.4       
@@ -307,12 +308,11 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   "rpart", # 8.4     
   # "rpart1SE", # 11  # "rpart2", # 8.6    
   "rqlasso", # 8.4
-  "rqnc", # 8.4
   # "RRF",        "RRFglobal", # 9 
   # "rvmLinear", # 8.6
   "rvmPoly",    "rvmRadial", # 8.5
   # "SBC", # 12        
-  "simpls", "spikeslab",  "spls", # 8.5; spls takes a bit longer 950
+  "simpls", "spikeslab",  # "spls", # 8.5; spls takes a bit longer 950
   # "superpc", # lowest score 27
   # "svmBoundrangeString",
   # "svmExpoString", # error on run
@@ -320,14 +320,17 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   "svmPoly",    "svmRadial",  "svmRadialCost","svmRadialSigma", # 8.5
   # "svmSpectrumString", # error on run
   # "treebag", # 9.3   
-  "widekernelpls" # 8.5
+  "widekernelpls", # 8.5
   # "WM", # 11
-  # "xgbDART", # extreme gradient boosting is good; "xgbLinear", # takes too long
+  "rqnc", # 8.4
+  "nodeHarvest", # 8.6
+  "mlpML", # 8.5
+  "xgbDART" # extreme gradient boosting is good; "xgbLinear", # takes too long
   # "xgbTree",    "xyf"
 )
 # models = unique(modelLookup()[modelLookup()$forReg,c(1)])
 
-# model parameters to test
+# list model parameters to test
 pars = list(
   # gbm=expand.grid(interaction.depth = c(1:5), #3 # gradient booted machine
   #                 n.trees = (seq(1,30,3))*50,
@@ -347,35 +350,30 @@ pars = list(
   # mlpKerasDecay=expand.grid(size=c(50,100), lambda=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
 )
 
-for (feat_path in gsub(".csv","",feat_paths)) {
-  cat(feat_path, " ------------------------------------------\n");
-  
-  data0 = as.matrix(read.csv(paste0(feat_dir,"/", feat_path,".csv")))
-  class(data0)="numeric"
-  mtr = data0[tr_ind,]
-  
-  # use lapply/loop to run everything; best RMSE chosen by default
-  feat_path_ = paste0(model_dir,"/",feat_path)
-  dir.create(feat_path_, showWarnings=F)
-  for (model in models) {
-    fname = paste0(feat_path_,"/",model,".Rdata")
-    if (!file.exists(fname) | overwrite) {
-      try ({
-        t2i = NULL
-        if (model%in%names(pars)) {
-          t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv, tuneGrid=pars[[model]])
-        } else {
-          t2i = caret::train(y=ctr, x=mtr, (model), trControl=fitcv)#, tuneGrid=pars[[model]])
-        }
-        if (!is.null(t2i)) save(t2i, file=fname)
-      })
-    }
+# use lapply/loop to run everything; best RMSE chosen by default
+for (model in models) {
+  cat("\n", model, " ------------------------------------------");
+  for (feat_path in names(m0s)) {
+    m0 = m0s[[feat_path]]
+    mtr = m0[tr_ind,]
+    
+    dir.create(paste0(model_dir,"/",feat_path), showWarnings=F)
+    fname = paste0(model_dir,"/",feat_path,"/",model,".Rdata")
+    if (!file.exists(fname) | overwrite) { try ({ cat("\n", feat_path)
+      t2i = NULL
+      if (model%in%names(pars)) {
+        t2i = caret::train(y=ctr, x=mtr, model, trControl=fitcv, tuneGrid=pars[[model]])
+      } else {
+        t2i = caret::train(y=ctr, x=mtr, model, trControl=fitcv)#, tuneGrid=pars[[model]])
+      }
+      if (!is.null(t2i)) save(t2i, file=fname)
+    }) }
   }
 }
 
 
 
-## 3) print training results as table ------------------------
+## 3) load models -----------------------------------
 feat_dirs = list.dirs(model_dir, full.names=F)
 feat_dirs = feat_dirs[!feat_dirs%in%""]
 result0 = llply(feat_dirs, function(data_type) { 
@@ -384,7 +382,7 @@ result0 = llply(feat_dirs, function(data_type) {
     get(load(paste0(model_dir,"/", data_type,"/",model,".Rdata"))) )
   names(a) = models
   return(a)
-}, .parallel=T)
+})
 names(result0) = feat_dirs
 
 # cat("min rmse's\n")
@@ -405,7 +403,7 @@ df1 = ldply (names(result), function(i) {
     , stringsAsFactors=F)
 })
 # df1
-write.csv(df1, file=paste0(result_dir,"/training_result.csv"))
+write.csv(df1, file=paste0(result_dir,"/training_results.csv"))
 
 ## 4) print all results as prediction plots -----------------------
 # result = unlist(result0, recursive=F)
@@ -425,22 +423,21 @@ write.csv(df1, file=paste0(result_dir,"/training_result.csv"))
 # dev.off()
 
 
-
 ## 4) get test prediction results from models ----------------------
 preds0 = llply(names(result0), function(feat_path) {
-  data0 = as.matrix(read.csv(paste0(feat_dir,"/", feat_path,".csv")))
-  class(data0) = "numeric"
+  m0 = m0s[[feat_path]]
   extractPrediction(
     result0[[feat_path]], 
-    testX=data0[te_ind,], testY=cte, unkX=data0[-tr_ind0,])
+    testX=m0[te_ind,], testY=cte, unkX=m0[-tr_ind0,])
 }, .parallel=T)
 names(preds0) = names(result0)
 save(preds0,file=paste0(result_dir,"/preds.Rdata"))
 
 load(paste0(result_dir,"/preds.Rdata"))
+dir.create(paste0(result_dir,"/obsvspred"), showWarnings=F)
 for (pred0n in names(preds0)) {
   # plot graph to compare models
-  png(paste0(result_dir,"/",pred0n,"_obsvspred.png"))
+  png(paste0(result_dir,"/obsvspred/",pred0n,".png"))
   plotObsVsPred(preds0[[pred0n]])
   graphics.off()
   
@@ -450,7 +447,7 @@ for (pred0n in names(preds0)) {
 }
 
 
-## 5) get emse results and plot ------------------------------------
+## 5) get rmse results and plot ------------------------------------
 # preds = unlist(preds0,recursive=F)
 rmse = function(x,y) sqrt(mean((x-y)^2))
 rmsedf = ldply(names(preds0), function(xi) {
@@ -466,7 +463,7 @@ rmsedf = ldply(names(preds0), function(xi) {
   })
 })
 
-wth = 1500
+wth = 2000
 png(paste0(result_dir,"/rmse_test.png"), width=wth)
 pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="test",,drop=F], groups=feature, 
               auto.key = list(columns=2),
@@ -490,8 +487,6 @@ print(pl)
 graphics.off()
 
 
-
-
 ## 6) check for outlier subjects ------------------------------------
 trte_diff = ldply(names(preds0), function(xi) {
   x = preds0[[xi]]
@@ -505,7 +500,7 @@ trte_diff = ldply(names(preds0), function(xi) {
   return(xdf)
 })
 
-png(paste0(result_dir,"/diff_outliers.png"), width=5000)
+png(paste0(result_dir,"/outliers.png"), width=5000)
 pl = barchart(abs(diff)~sample, data=trte_diff[order(trte_diff$diff),], groups=feat.model, 
               auto.key = list(columns=5),
               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
@@ -532,7 +527,6 @@ graphics.off()
 #               main="absolute prediction - ground truth, over sample")
 # print(pl)
 # dev.off()
-
 
 
 ## 7) save final results of one model/feature ------------------
