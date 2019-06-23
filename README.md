@@ -3,11 +3,16 @@
 invent the future ai4all is a 2 week summer enrichment program for grad 10 & 11 girls
 
 links:
-- drive: https://drive.google.com/drive/folders/1YmWcwDZ4f5B1ajF90gEeKbE60hN1-uBL?usp=sharing
+- drive (see description below): https://drive.google.com/drive/folders/1YmWcwDZ4f5B1ajF90gEeKbE60hN1-uBL?usp=sharing
 - challenge site: https://www.synapse.org/#!Synapse:syn18380862
 - ai4all sfu site: https://www.sfu.ca/computing/inventthefuture.html
   - pitches: https://docs.google.com/document/d/1Co6ZALQjFdeEKPGSlvAxB0TqsAt0ZTLrqT8J77VPp2o/edit
 
+scripts:
+- [bio2019_all.R](bio2019_all.R): script that generates all features and model results; section on feature generation taken from [bio2019_FeatureExtraction.R](bio2019_FeatureExtraction.R)
+  - ```models``` variable contains all the models used from the ```caret``` package; details can be found on https://topepo.github.io/caret/available-models.html
+  - ```pars``` variable contains all the parameters to test on these models, only the parameters with the best RMSE is kept
+- [bio2019_loadtest.R](bio2019_loadtest.R): script that loads and displays results of each feature/model combination one by one as defined by variables ```xi``` (feature) and ```model```
 
 ## schedule
 
@@ -60,7 +65,7 @@ Deliverables
 
 
 
-### data
+### drive/data/00_input
 - input: ```HTA20_RMA.RData```
 - output: 5 submissions to leaderboard, 1 final submission; continuous 8-42 gestational age in weeks rounded to 1 decimal for test sample
 - evaluation: RMSE (root mean-square error)
@@ -85,3 +90,23 @@ Deliverables
 - ```HT20``` folder (not uploaded 47.36gb): 735 raw .CEL files from the HTA 2.0 platform
 
 ![train data for sub-challenge 1](sc1_train.PNG)
+
+
+### drive/data/01_features
+
+this folder contains features transformed from ```HTA20_RMA.RData```
+
+### drive/data/02_models
+
+all models tested are saved here organized by feature used; these are loaded back into scripts to generate visualizations and tables
+
+### drive/data/03_results
+
+resulting visualizations and tables are saved here
+
+### drive/data/cvinds.Rdata
+
+indices used for cross validation in training, and testing
+
+
+
