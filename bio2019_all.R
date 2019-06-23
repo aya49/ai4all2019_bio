@@ -30,19 +30,21 @@ sapply(c(feat_dir, model_dir, result_dir),
 
 
 ## load packages; need to fix according to what model we'll be using
-pkgs = c("Rfast", "stringr", "plyr", "dplyr", # var, str_, llply, etc
+pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
          "lattice", "ggplot2", # barplot, plots
          "foreach", "doMC", # parallel back-end
          "caret", "e1071", "ranger", "ANN2", "randomForest",
-         "glmnet","RSNNS","plsRglm") # ml
-# pkgs = c("frbs", "brnn", "monomvn", "Cubist", "elasticnet", "fastICA", "lars", "leaps", "MASS", "RWeka", "neuralnet", "rqPen", "nnls", "penalized", "KRLS", "pls", "quantregForest", "qrnn", "rqPen", "kernlab", "relaxo", "foba", "spikeslab", "superpc", "ipred", "e1071", "logicFS", "earth", "bartMachine", "arm", "mboost", "import", "bst", "party", "partykit", "rpart", "randomGLM", "xgboost", "elmNN", "gam", "mgcv", "h2o", "kknn", "LiblineaR", "LogicReg", "nnet", "monmlp", "RSNNS", "msaenet", "FCNN4R", "keras", "mxnet", "partDSA", "plsRglm", "ranger", "Rborist", "randomForest", "extraTrees", "RRF", "kohonen", "spls", "deepnet", "gbm", "evtree", "nodeHarvest")
+         "elasticnet", "fastICA", "foba", "glmnet","kernlab", 
+         "KRLS", "lars", "leaps", "nnls", "nodeHarvest", 
+         "partDSA", "pls", "plsRglm", "rpart", "rqPen",
+         "RSNNS", "spikeslab", "xgboost") # ml
 pkgs_ui = setdiff(pkgs, rownames(installed.packages()))
 if (length(pkgs_ui) > 0) install.packages(pkgs_ui, verbose=F)
 sapply(pkgs, require, character.only=T)
 
 
 ## script options
-no_cores = 10#detectCores()-1 # number of cores to use in parallel
+no_cores = detectCores()-1 # number of cores to use in parallel
 registerDoMC(no_cores)
 
 overwrite = F # overwrite results?
@@ -64,7 +66,7 @@ class_final = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv"))
 # RNASEQ data: each row is a gene and each column a patient 
 #  probeset: gene ID
 #  pid: patient id 
-data0 = t(get(load("https://drive.google.com/file/d/1fmKTyupq2ga3iRUgLYghqoVXkWSwoLIb/view?usp=download")))
+data0 = t(get(load(paste0(input_dir,"/HTA20_RMA.RData"))))
 
 
 ## data exploration ----------------------------
@@ -410,7 +412,7 @@ df1 = ldply (names(result), function(i) {
     , stringsAsFactors=F)
 })
 # df1
-write.csv(df1, file=paste0(result_dir,"/rmse_train.csv"))
+write.table(df1, file=paste0(result_dir,"/rmse_train.csv"))
 
 ## 4) print all results as prediction plots -----------------------
 # result = unlist(result0, recursive=F)
@@ -434,7 +436,7 @@ write.csv(df1, file=paste0(result_dir,"/rmse_train.csv"))
 preds0 = llply(names(result0), function(xi) {
   m0 = m0s[[xi]]
   res = extractPrediction(result0[[xi]], 
-    testX=m0[te_ind,], testY=cte)#, unkX=m0[-tr_ind0,]) # some features don't have test data
+    testX=m0[te_ind,], testY=cte, unkX=m0[-tr_ind0,]) # some features don't have test data
   return(res)
 }, .parallel=T)
 names(preds0) = names(result0)
@@ -541,8 +543,8 @@ graphics.off()
 
 
 ## 7) save final results of one model/feature ------------------
-feature = "features_raw"
+xi = "features_raw"
 model = "enet"
 # finalsol = llply(preds, function(x) x$pred[is.na(x$obs)])
-class_final$GA = round(preds0[[feature]]$pred[is.na(preds0[[feature]]$obs) & preds0[[feature]]$model==model],1)
+class_final$GA = round(preds0[[xi]]$pred[is.na(preds0[[xi]]$obs) & preds0[[xi]]$model==model],1)
 write.csv(class_final, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))

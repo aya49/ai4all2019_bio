@@ -24,12 +24,14 @@ sapply(c(feat_dir, model_dir, result_dir),
 
 
 ## load packages; need to fix according to what model we'll be using
-pkgs = c("Rfast", "stringr", "plyr", "dplyr", # var, str_, llply, etc
+pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
          "lattice", "ggplot2", # barplot, plots
          "foreach", "doMC", # parallel back-end
          "caret", "e1071", "ranger", "ANN2", "randomForest",
-         "glmnet","RSNNS","plsRglm") # ml
-# pkgs = c("frbs", "brnn", "monomvn", "Cubist", "elasticnet", "fastICA", "lars", "leaps", "MASS", "RWeka", "neuralnet", "rqPen", "nnls", "penalized", "KRLS", "pls", "quantregForest", "qrnn", "rqPen", "kernlab", "relaxo", "foba", "spikeslab", "superpc", "ipred", "e1071", "logicFS", "earth", "bartMachine", "arm", "mboost", "import", "bst", "party", "partykit", "rpart", "randomGLM", "xgboost", "elmNN", "gam", "mgcv", "h2o", "kknn", "LiblineaR", "LogicReg", "nnet", "monmlp", "RSNNS", "msaenet", "FCNN4R", "keras", "mxnet", "partDSA", "plsRglm", "ranger", "Rborist", "randomForest", "extraTrees", "RRF", "kohonen", "spls", "deepnet", "gbm", "evtree", "nodeHarvest")
+         "elasticnet", "fastICA", "foba", "glmnet","kernlab", 
+         "KRLS", "lars", "leaps", "nnls", "nodeHarvest", 
+         "partDSA", "pls", "plsRglm", "rpart", "rqPen",
+         "RSNNS", "spikeslab", "xgboost") # ml
 pkgs_ui = setdiff(pkgs, rownames(installed.packages()))
 if (length(pkgs_ui) > 0) install.packages(pkgs_ui, verbose=F)
 sapply(pkgs, require, character.only=T)
