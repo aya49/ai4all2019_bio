@@ -64,7 +64,7 @@ class_final = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv"))
 # RNASEQ data: each row is a gene and each column a patient 
 #  probeset: gene ID
 #  pid: patient id 
-data0 = t(get(load(paste0(input_dir,"/HTA20_RMA.RData"))))
+data0 = t(get(load("https://drive.google.com/file/d/1fmKTyupq2ga3iRUgLYghqoVXkWSwoLIb/view?usp=download")))
 
 
 ## data exploration ----------------------------
@@ -541,7 +541,7 @@ graphics.off()
 
 
 ## 7) save final results of one model/feature ------------------
-feature = "raw"
+feature = "features_raw"
 model = "enet"
 # finalsol = llply(preds, function(x) x$pred[is.na(x$obs)])
 class_final$GA = round(preds0[[feature]]$pred[is.na(preds0[[feature]]$obs) & preds0[[feature]]$model==model],1)
