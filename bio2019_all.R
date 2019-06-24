@@ -16,7 +16,8 @@ set.seed(10)
 
 
 ## root 
-root = "/mnt/f/Brinkman group/current/Alice/ai4all2019_bio"
+#root = "/mnt/f/Brinkman group/current/Alice/ai4all2019_bio"
+root = "C:/Users/raoki/Documents/GitHub/ai4all2019_bio"
 setwd(root)
 
 
@@ -25,7 +26,7 @@ input_dir = paste0(root,"/00_input") # raw data directory
 feat_dir = paste0(root,"/01_features") # feature directory
 model_dir = paste0(root, "/02_models") # model directory
 result_dir = paste0(root, "/03_results") # stats/plots directory
-sapply(c(feat_dir, model_dir, result_dir), 
+sapply(c(input_dir,feat_dir, model_dir, result_dir), 
        function(x) dir.create(x, showWarnings=F))
 
 

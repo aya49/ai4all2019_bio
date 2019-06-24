@@ -1,4 +1,8 @@
 Data/
+00_input/
+01_features/
+02_models/
+03_results/
 .ipynb_checkpoints/
 
 .Rhistory
