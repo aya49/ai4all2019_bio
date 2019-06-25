@@ -6,6 +6,7 @@ output: html_notebook
 # Todo:
 - Write down better introduction 
 - Fix packages
+- add text about importance of feature extraction
 
 # input:
 - features: (samples x 32830/925032 gene/probeset) RNAseq counts (+extracted features); data has been batch and count normalized
@@ -159,100 +160,66 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
 # Exercise: 
 1. What can we conclude from these plots above? 
 2. Why we don't have the correlation between the gene expression and GA for the testing set? 
+3. Can you think in any other intesresting plots or analysis? 
 
 Answer (delete): 
 1. a) The average expression is around 5. There are a few genes that are more expressed. b) There is no strong correlation between variance and average gene expression. c) The person correlation between the genes and the Gestacional Age looks like a normal distributio with mean equals 0. This means that most of genes will have a association equals 0. d) The correlation between the Spearman Correlation and Pearson correlation is very strong, meaning that we can use either Spearman or Pearson that the results will be very similar. 
 2. We don't make these correlation because we don't know the GA for the testing set. In fact, this is the exacly information that we are looking for. 
 
+#2. Features Extraction 
+
+The original dataset has 32830 genes expressions. However, from the plot of the correlation we already know that some of these genes aren't associate with GA. Besides, genes with a very low variance might don't contribute for the prediction of gestacional age. Also, large datasets might add noise to machine leanring models. 
+
+
+ADD MORE INFO HERE ABOUT IMPORTANCE OF FEATURE EXTTRACTION
+
+
+We will use 5 methods do extract features. 
+1. Elimination of 30% of genes with lowest variance; 
+2. Elimination of 30% of genes with lowest correlation with GA; 
+3. PCA
+4. Random Forest 
+5. Autoenconder 
 
 ```{r}
 
+## 1 and 2) Removing genes with low variance and low absolute correlation
+data_cor$corr_p = abs(data_cor$corr_p)
+keep = subset(data_cor, variance>quantile(data_cor$variance, 0.3) & corr_p>quantile(data_cor$corr_p,0.3))
+
+data2 = subset(data0, select = keep$col)
+
+## Saving for future use
+write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T)
 
 
-
-
-#--------#--------#--------#--------#--------#--------#--------
-# 1: feature extraction ---------------------------------------
-#--------#--------#--------#--------#--------#--------#--------
-
-## temp data prep -------------------------------------------
-# save only high variance genes and those with high sig pearson corr with GA
-m = data0[,datavars>quantile(datavars,0.7) & abs(corsp)>quantile(abs(corsp),0.7) & corspp<quantile(corspp,0.1) & meancount>quantile(meancount,0.5)]
-# # rfe to reduce features random forest
-# rfe_res = rfe(m[tr_ind,], meta$GA[tr_ind], sizes=c(1:8), rfeControl=rfeControl(functions=rfFuncs, method="cv", number=10))
-# print(rfe_res)
-# predictors(rfe_res)
-# plot(rfe_res, type=c("g", "o"))
-write.csv(m, file=paste0(feat_dir,"/features_raw.csv"))
-
-
-## 1) Removing genes with low variance ------------------------
-eliminate = data.frame(col = c(1:dim(data0)[2]), var_gene = colVars(data0))
-# head(eliminate)
-eliminate = subset(eliminate, var_gene<quantile(eliminate$var_gene, 0.3))
-# dim(data0)
-data1 = subset(data0, select = -c(eliminate$col))
-# dim(data1)
-
-
-## 2) Removing elements with low correlation with GA ----------
-data2 = data.frame(SampleID=row.names(data1), data1)
-row.names(data2) = NULL
-# Combining the two datasets 
-data2 = merge(sample[,c(1,2,5)], data2, by.x = 'SampleID', by.y = 'SampleID', all = T)
-#Using only the train dataset to make the feature importance 
-data2 = subset(data2, Train == 1)
-data2 = subset(data2, select = -c(Train,SampleID))
-
-eliminate = data.frame(col = c(1:dim(data1)[2]),corr = apply(data2[,-1], 2, cor, x=data2$GA))
-eliminate$corr = abs(eliminate$corr)
-eliminate = subset(eliminate, corr<quantile(eliminate$corr,0.3))
-dim(data2)
-data2 = subset(data1, select = -c(eliminate$col))
-dim(data2)
-# write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T)
-
-
-## 3) PCA -----------------------------------------------------
-# https://www.datacamp.com/community/tutorials/pca-analysis-r
-# Don't need the values to be predicted, only the features
+## 3) PCA
 PrePCA = preProcess(data2,method="pca")
 feat.pca = predict(PrePCA,data2)
-# PrePCA
 write.csv(feat.pca, paste0(feat_dir,'/features_pca.csv'), row.names=T)
 
-
 ## 4) Random Forest --------------------------------------------
-#https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest
-#https://uc-r.github.io/random_forests
-#http://www.rebeccabarter.com/blog/2017-11-17-caret_tutorial/
-# It depends on the features and the value to be predicted 
-# data2 = as.matrix(data2)
 metric = "Accuracy"
-#Number randomely variable selected is mtry
-PreRF = caret::train(y=meta$GA[tr_ind0], x=data2[tr_ind0,], method='ranger',importance='impurity')
-
-# print(PreRF)
+GA = data1$GA
+data1 = subset(data1, select =keep$col)
+data1 = data.frame(GA, data1)
+PreRF = caret::train(y=data1$GA, x=data1[,-1],  method='ranger',importance='impurity')
 PreRF.i = varImp(PreRF)$importance
-# PreRF.i = PreRF.i[order(PreRF.i$Overall, decreasing=T)[1:500],]
-# PreRF.i = PreRF.i[1:500,]
 
 feat.ra = data2[,order(PreRF.i, decreasing=T)[1:500]]
 write.csv(feat.ra, paste0(feat_dir,'/features_ra.csv'), row.names = T)
 
-
 ## 5) Autoencoder --------------------------------------------
-#https://www.r-bloggers.com/pca-vs-autoencoders-for-dimensionality-reduction/
-#https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
-#https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
-
-#epochs changed to 100
-preA = autoencoder(data2,hidden.layers = c(1000, 500, 1000))
+preA = autoencoder(data2, hidden.layers = c(1000, 500, 1000))
 feat.A = encode(preA, data2)
+rownames(feat.A) = rownames(feat.ra)
 write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
 
-# save.image()
+#save.image()
+```
 
+
+```{r}
 
 
 #--------#--------#--------#--------#--------#--------#--------
