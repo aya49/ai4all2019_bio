@@ -17,7 +17,7 @@ set.seed(10)
 
 ## root 
 #root = "/mnt/f/Brinkman group/current/Alice/ai4all2019_bio"
-root = "C:/Users/raoki/Documents/GitHub/ai4all2019_bio"
+root = "C:\\Users\\raque\\Documents\\GitHub\\ai4all2019_bio"
 setwd(root)
 
 
