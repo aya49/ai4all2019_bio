@@ -219,193 +219,150 @@ write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
 ```
 
 
+#3. Machine Learning models
+
+In this section we will work on the prediction task. 
+For this, we will test several machine learning models to see which one produced the lowest error. 
+We will compare which set of features also produce the best results. 
+
+We will test X models: 
+* enet: Fits Elastic Net Regression Models
+* foba: Greedy variable selection for ridge regression (?)
+* gaussprPolyg: Gaussian Process with Polynomial Kernel
+* gaussprRadial: Gaussian Process with Radial Basis Function Kernel
+* glmnet: Elastic net model paths for some generalized linear models
+* icr: linear regression model using independent components
+* kernelpls: Fits a PLSR(Partial Least Squares Regression) model with the kernel algorithm.
+* krlsRadial:
+* lars2      
+* lasso: regression least absolute shrinkage and selection operator
+* leapBackward: regression  
+* leapForward: regression 
+* leapSeq: regression 
+* nnls: regression, non-negative least squares
+* null
+* partDSA: Partitioning Using Deletion, Substitution, and Addition Moves
+* pls: Partial Least Squares Regression      
+* plsRglm: Partial Least Squares Regression    
+* rbf: Radial Basis Function 
+* rpart: Recursive Partitioning And Regression Trees
+* rqlasso: Ridge Regression and the Lasso
+* rvmPoly: Least squares support vector machines poly kernel
+* rvmRadial: regression vector machine radial kernel
+* simpls: PLSR model with the SIMPLS algorithm
+* spikeslab:Prediction and variable selection using spike and slab regression
+* spls: Sparse Partial Least Squares 
+* svmPoly: Support Vector Machines with Polynomial Kernel 
+* svmRadial: Support Vector Machines with Radial 
+* svmRadialCost: Support Vector Machines with Radial
+* svmRadialSigma: Support Vector Machines with kernel
+* widekernelpls: no info
+* rqnc: no info 
+* nodeHarvest: tree-like estimator
+* mlpML: Multilayer Perceptron
+* xgbDART
+
+
+
+In this chunk, we will load the features that we pre-processed. 
+The advange is that if something happen with the code and we need to restart, we don't need to wait for
+the code to run the features again, we can just load the results here. 
 ```{r}
-
-
-#--------#--------#--------#--------#--------#--------#--------
-# 2: regression models ----------------------------------------
-#--------#--------#--------#--------#--------#--------#--------
-
-## 0) load features ----------------------------------------
+## 0) load features
 feat_paths = list.files(feat_dir) # feature paths
-m0s = llply(feat_paths, function(xi) {
-  m0 = read.csv(paste0(feat_dir,"/", xi))
-  rownames(m0) = m0[,1]
-  m0 = as.matrix(m0[,-1])
-})
-names(m0s) = gsub(".csv","",feat_paths)
+features = llply(feat_paths, 
+            function(xi) {
+              feat = read.csv(paste0(feat_dir,"/", xi))
+              rownames(feat) = feat[,1]
+              feat = as.matrix(feat[,-1])
+              }
+            )
+names(features) = gsub(".csv","",feat_paths)
+
+```
 
 
-## 1) prep cvn-fold cross validation & rmse function ----------
+
+Explain better here what this part is doing
+```{r}
+## 1) prep cvn-fold cross validation & rmse function
 cvinds_path = paste0(root,"/cvinds.Rdata")
-if (file.exists(cvinds_path)) {
+if(file.exists(cvinds_path)){
   load(cvinds_path)
 } else {
   cvn = 10
-  tr_ind0 = which(meta$Train==1)
-  te_ind = sample(tr_ind0, ceiling(length(tr_ind0)/11))
-  tr_ind = sample(tr_ind0[!tr_ind0%in%te_ind])
-  ctr = as.numeric(meta$GA[tr_ind])
+  tr_ind0 = which(meta$Train==1) #selecting only the training examples
+  te_ind = sample(tr_ind0, ceiling(length(tr_ind0)/11)) #cross validation set
+  tr_ind = sample(tr_ind0[!tr_ind0%in%te_ind]) #removing cross validation set from training set 
+  ctr = as.numeric(meta$GA[tr_ind]) 
   cte = as.numeric(meta$GA[te_ind])
   save(cvn,tr_ind0,te_ind,tr_ind,ctr,cte, file=cvinds_path)
 }
-# # cross validation function
-# rmse = function(x,y) sqrt(mean((x-y)^2))
-# cv_inds = split(tr_ind, cut(seq_along(tr_ind), cvn, labels=F))
-# cv_class = llply(cv_inds, function(is) meta$GA[is])
-# cv = function(data0, cv_inds, cv_class, fun, ...) {
-#   llply (1:length(cv_inds), function(i) {
-#     mtr = data0[unlist(cv_inds[-i]),]
-#     ctr = unlist(cv_class[-i])
-#     mte = data0[cv_inds[[i]],]
-#     cte_ = unlist(cv_class[-i])
-#     pte = fun(mtr, ctr, mte, ...)
-#     return(list(pte=pte, rmse=rmse(pte,cte_)))
-#   })
-# }
-# # usage:
-# result_10x_rsme_pred = cv(data0, cv_inds, cv_class, function(mtr, ctr, mte) {
-#   ...
-#   return(pred) # vector of test class prediction
-# })
+```
+
+
+
+The code bellow shows the names of all models we will be considering. 
+
+```{r}
 fitcv = trainControl(method="cv", number=cvn)
 
 
 ## 2) test regression models ---------------------------------
 
 # list models to test
-models = c(# "ANFIS", # takes too long; RMSE 20
-  #"avNNet","bag",
-  # "bagEarth", # 8.9
-  # "bagEarthGCV", # 8.6; repeat
-  #"bam",        "bartMachine",
-  # "bayesglm", # 10
-  #"blackboost", 
-  ## "blasso", # 8.4; takes a bit longer 950
-  # "blassoAveraged", # 8.4; repeat
-  ## "bridge", # 8.4; takes a bit longer 950
-  #"brnn",       "BstLm",      "bstSm",      "bstTree",   
-  #"cforest",    "ctree",      "ctree2",     "cubist",    
-  #"DENFIS",     "dnn",        "earth",      "elm",       
+models = c(
   "enet", # 8.5      
-  # "evtree",     "extraTrees", "FIR.DM", # no pkg  
   "foba", # 8.5      
-  # "FS.HGD", # 9
-  # "gam",        "gamboost", "gamLoess",   "gamSpline", # error on run
-  # "gaussprLinear", # 10
   "gaussprPoly", # 8.3
   "gaussprRadial", # 8.8
-  # "gbm", # 9
-  # "gbm_h2o",  # error on run
-  # "gcvEarth", # 9.5
-  # "GFS.FR.MOGUL","GFS.LT.RS",  "GFS.THRIFT", # takes too long
-  # "glm", "glm.nb", # 10
-  # "glmboost",  # error on run
   "glmnet", # 8.5
-  # "glmnet_h2o",  # error on run
-  # "glmStepAIC", # 10
-  # "HYFIS", # takes too long
   "icr", # 8.4
   "kernelpls", # 8.5
-  # "kknn",# 9.6       
-  # "knn", # 9       
-  ## "krlsPoly", # 8.5; takes a bit longer 900
   "krlsRadial", # 8.5
-  # "lars", # 8.5       
   "lars2", # 8.5      
   "lasso", # 8.7     
   "leapBackward", "leapForward", "leapSeq", # 8.5
-  # "lm","lmStepAIC", # 10
-  # "logicBag",   "logreg", "M5","M5Rules", # no pkg
-  # "mlp", # 10
-  # "mlpKerasDecay","mlpKerasDropout",  # error on run
-  # "mlpSGD", # error on run
-  # "mlpWeightDecay", # 10 
-  # "mlpWeightDecayML", # 9 
-  # "monmlp", # 10
-  # "msaenet", # 10   
-  # "mxnet",      "mxnetAdam", # no pkg
-  # "neuralnet", # error on run
-  # "nnet", # 26
   "nnls", # 8.5
   "null", # 8.5
-  # "parRF", # 9      
   "partDSA", # 8.5
-  # "pcaNNet", # 26   
-  # "pcr", # 8.5
-  # "penalized", # 9
-  "pls",        "plsRglm",    
-  # "ppr", "qrf", # 11     
-  # "qrnn", "randomGLM", # takes too long
-  # "ranger", # 9   
+  "pls",        
+  "plsRglm",    
   "rbf", # 8.4       
-  # "rbfDDA", # 27
-  # "Rborist", # takes too long
-  # "relaxo", # 8.7
-  # "rf", #9.7
-  # "rfRules", # error on run
-  # "ridge", # 9.5
-  # "rlm", # error on run       
   "rpart", # 8.4     
-  # "rpart1SE", # 11  # "rpart2", # 8.6    
   "rqlasso", # 8.4
-  # "RRF",        "RRFglobal", # 9 
-  # "rvmLinear", # 8.6
   "rvmPoly",    "rvmRadial", # 8.5
-  # "SBC", # 12        
   "simpls", "spikeslab",  # "spls", # 8.5; spls takes a bit longer 950
-  # "superpc", # lowest score 27
-  # "svmBoundrangeString",
-  # "svmExpoString", # error on run
-  # "svmLinear",  "svmLinear2", # 11 # "svmLinear3", # 9
   "svmPoly",    "svmRadial",  "svmRadialCost","svmRadialSigma", # 8.5
-  # "svmSpectrumString", # error on run
-  # "treebag", # 9.3   
   "widekernelpls", # 8.5
-  # "WM", # 11
   "rqnc", # 8.4
   "nodeHarvest", # 8.6
   "mlpML", # 8.5
   "xgbDART" # extreme gradient boosting is good; "xgbLinear", # takes too long
-  # "xgbTree",    "xyf"
 )
-# models = unique(modelLookup()[modelLookup()$forReg,c(1)])
 
 # list model parameters to test
 pars = list(
-  # gbm=expand.grid(interaction.depth = c(1:5), #3 # gradient booted machine
-  #                 n.trees = (seq(1,30,3))*50,
-  #                 shrinkage = 0.1,
-  #                 n.minobsinnode = 20),
-  # ANFIS=expand.grid(max.iter=c(10,30,60,100)), # adaptive-network-based fuzzy inference system
-  # avNNet=expand.grid(size=c(50,100), decay=10^runif(5, min = -5, 1), bag=T),
-  #brnn=expand.grid(neurons=c(50,100)),
   enet=expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)),
-  # neuralnet=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100)),
-  # blackboost=expand.grid(maxdepth=c(1,3,6,10)),
-  # xgbDART=expand.grid(nrounds, max_depth, eta, gamma, subsample, colsample_bytree, rate_drop, skip_drop, min_child_weight),
-  # xgbLinear=expand.grid(nrounds, lambda, alpha, eta),
-  # xgbTree=expand.grid(nrounds, max_depth, eta, gamma, colsample_bytree, min_child_weight, subsample),
   mlpML=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100))
-  # mlpKerasDropout=expand.grid(size=c(50,100), dropout=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear")),
-  # mlpKerasDecay=expand.grid(size=c(50,100), lambda=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
 )
 
+overwrite = FALSE
 # use lapply/loop to run everything; best RMSE chosen by default
 for (model in models) {
   cat("\n", model, " ------------------------------------------");
-  for (xi in names(m0s)) {
-    m0 = m0s[[xi]]
-    mtr = m0[tr_ind,]
-    
+  for (xi in names(features)) {
+    current_features = features[[xi]]
+    train = current_features[tr_ind,]
+    #mtr = train
     dir.create(paste0(model_dir,"/",xi), showWarnings=F)
     fname = paste0(model_dir,"/",xi,"/",model,".Rdata")
     if (!file.exists(fname) | overwrite) { try ({ cat("\n", xi)
       t2i = NULL
       if (model%in%names(pars)) {
-        t2i = caret::train(y=ctr, x=mtr, model, trControl=fitcv, tuneGrid=pars[[model]])
+        t2i = caret::train(y=ctr, x=train, model, trControl=fitcv, tuneGrid=pars[[model]])
       } else {
-        t2i = caret::train(y=ctr, x=mtr, model, trControl=fitcv)#, tuneGrid=pars[[model]])
+        t2i = caret::train(y=ctr, x=train, model, trControl=fitcv)#, tuneGrid=pars[[model]])
       }
       if (!is.null(t2i)) save(t2i, file=fname)
     }) }
@@ -413,7 +370,9 @@ for (model in models) {
 }
 
 
+```
 
+```{r}
 ## 3) load models -----------------------------------
 feat_dirs = list.dirs(model_dir, full.names=F)
 feat_dirs = feat_dirs[!feat_dirs%in%""]
@@ -426,11 +385,12 @@ result0 = llply(feat_dirs, function(data_type) {
 })
 names(result0) = feat_dirs
 
-# cat("min rmse's\n")
+```
+
+
+```{r}
 result = unlist(result0,recursive=F)
-# r2 = llply(1:length(result), function(i) {
-#   cat(models[i],": ",  round(result[[i]]$results$RMSE[which.min(result[[i]]$results$RMSE)],4),"\t",  result[[i]]$times$everything[3],"\n")
-# })
+
 
 # results to data frame
 df1 = ldply (names(result), function(i) {
@@ -443,8 +403,14 @@ df1 = ldply (names(result), function(i) {
     par=paste0( paste0(names(result[[i]]$bestTune), collapse="_"), ": ", paste0(result[[i]]$bestTune, collapse="_") )
     , stringsAsFactors=F)
 })
-# df1
+
 write.table(df1, file=paste0(result_dir,"/rmse_train.csv"))
+```
+
+
+
+```{r}
+
 
 ## 4) print all results as prediction plots -----------------------
 # result = unlist(result0, recursive=F)
