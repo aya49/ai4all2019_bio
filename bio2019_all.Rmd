@@ -16,20 +16,20 @@ output: html_notebook
 
 # Data Analysis 
 
-## 0: Preprocessing  
+##1. Preprocessing  
 
 In the first part we will work on the environment we will use. This means we will clean the environment, declare the directory of the project and install libraries.  
 
 
 
-```{r, warning=FALSE, message=FALSE, error = FALSE   }
+```{r, warning=FALSE, message=FALSE, error = FALSE  , results = 'hide' }
 rm(list=ls(all=T)) # clean the environment
 set.seed(10)
 
 
 ## Defining the work directory of the project  
 #root = "/mnt/f/Brinkman group/current/Alice/ai4all2019_bio"
-root = "C:\\Users\\raque\\Documents\\GitHub\\ai4all2019_bio"
+root = "C:\\Users\\raoki\\Documents\\GitHub\\ai4all2019_bio"
 setwd(root)
 
 
@@ -43,7 +43,7 @@ sapply(c(input_dir,feat_dir, model_dir, result_dir),
 
 ## load packages; need to fix according to what model we'll be using
 pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
-         "lattice", "ggplot2", # barplot, plots
+         "lattice", "ggplot2", "grid","gridExtra", # barplot, plots
          "foreach", "doMC", # parallel back-end
          "caret", "e1071", "ranger", "ANN2", "randomForest",
          "elasticnet", "fastICA", "foba", "glmnet","kernlab", 
@@ -62,67 +62,112 @@ sapply(pkgs, require, character.only=T)
 ```
 
 Next, we will load the input files. There are 3 files:
-1) Sample Annotation file: 
--- SampleID: unique identifier of the sample (matching the name of the .CEL file in HTA20 folder, except for extension .CEL);
--- GA: gestational age as determined by the last menstrual period and or ultrasound;
--- Batch: the batch identifier;
--- Set: name of the source dataset;
--- Train: 1 for samples to be used for training, 0 for samples to be used for test;
+
+1. Sample Annotation file: 
+
+* SampleID: unique identifier of the sample (matching the name of the .CEL file in HTA20 folder, except for extension .CEL);
+* GA: gestational age as determined by the last menstrual period and or ultrasound;
+* Batch: the batch identifier;
+* Set: name of the source dataset;
+* Train: 1 for samples to be used for training, 0 for samples to be used for test;
+
+2. RNASEQ Data: each row is a gene and each column a patient 
+
+*  probeset: gene ID
+*  pid: patient id 
+
+3. Submission template for the competition
 
 ```{r,warning=FALSE, message=FALSE, error = FALSE}
+## load input files
+
+#Sample Annotation file
+meta=  read.csv(paste0(input_dir,"/anoSC1_v11_nokey.csv"))
+
+# RNASEQ data
+data0 = t(get(load(paste0(input_dir,"/HTA20_RMA.RData"))))
+
+
+# submission template
+submission = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv")) 
+
+```
+
+
+Data Exploration: 
+
+```{r}
+cat('Range\n');range(data0) ; cat('Genes IDs\n');gid = colnames(data0); head(gid) ;cat('Patients IDs\n');pid = rownames(data0); head(pid)
+cat('Meta Data head and shape\n'); head(meta); dim(meta)
+cat('RNASEQ head and shape\n'); head(data0[,c(1:5)]); dim(data0)
+cat('Submission head and shape\n'); head(submission); dim(submission)
+
+```
+
+Now we will explore the data with some plots. First we need to prepare the data and summarize the informatoin we will use in the plots. 
+
+
+```{r}
+# plot stats: mean count, pearson/spearman corr
+
+#Using only the train dataset to calculate the correlation, mean and variance 
+data1 = data.frame('SampleID' = rownames(data0), data0)
+data1 = merge(meta[,c(1,2,5)],data1,by.x = 'SampleID',by.y = 'SampleID', all = T)
+
+#splitting training set and testing set 
+data1 = subset(data1, Train == 1) 
+data1 = subset(data1, select = -c(Train,SampleID))
+
+#train set 
+data_cor = data.frame(col = names(data1),corr_p = apply(data1, 2, cor, x = data1$GA, method = 'pearson'))
+data_cor = data.frame(data_cor, corr_s = apply(data1, 2, cor, x = data1$GA, method = 'spearman'))
+rownames(data_cor) = NULL 
+
+
+#Dataset with all information 
+data_cor = data.frame(data_cor, variance = c(var(data1$GA),colVars(data0)), mean = c(mean(data1$GA),colMeans(data0))) 
+data_cor = data_cor[-1,] # removing GA from the dataset
+
 
 
 ```
 
+To make the plots, we will use a library called ggplot2. Here are shown some plots we can make using this library. 
+
 ```{r}
-## load input files
-
-#Sample Annotation file
-meta = read.csv(paste0(input_dir,"/anoSC1_v11_nokey.csv"))
-
-# submission template
-class_final = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv")) 
-
-# RNASEQ data: each row is a gene and each column a patient 
-#  probeset: gene ID
-#  pid: patient id 
-data0 = t(get(load(paste0(input_dir,"/HTA20_RMA.RData"))))
-
-
-## data exploration ----------------------------
-range(data0) # range: 0.9365626 14.2836285
-gid = colnames(data0); head(gid) # genes IDS
-pid = rownames(data0); head(pid) # Patient IDS  
-
-# plot stats: mean count, pearson/spearman corr
-datavars = colVars(data0)
-meancount = colMeans(data0)
-meancounto = order(meancount)
-
-tr_ind0 = which(meta$Train==1)
-corpe = apply(data0[tr_ind0,meancounto], 2, function(x) 
-  cor(x, meta$GA[tr_ind0], method="pearson"))
-corpep = apply(data0[tr_ind0,meancounto], 2, function(x) 
-  cor.test(x, meta$GA[tr_ind0], method="pearson")$p.value)
-
-corsp = apply(data0[tr_ind0,meancounto], 2, function(x) 
-  cor(x, meta$GA[tr_ind0], method="spearman"))
-corspp = apply(data0[tr_ind0,meancounto], 2, function(x) 
-  cor.test(x, meta$GA[tr_ind0], method="spearman")$p.value)
-
 # plot stats
-png(paste0(result_dir,"/gene_stats.png"), width=800, height=1000)
-par(mfcol=c(4,1), mar=c(3,3,3,3))
-plot(density(data0), main="count distribution")
-plot(log(meancount), datavars, pch=16, cex=.3, 
-     main="gene ln(mean count) x variance")
-plot(corpe, cex=1-corpep, pch=16, 
-     main="gene (asc mean count order) x pearson corr with GA (size=1-pvalue)")
-# plot(abs(corpe), cex=1-corpep, pch=16)
-plot(corsp, cex=1-corspp, pch=16, 
-     main="gene (asc mean count order) x spearman corr with GA (size=1-pvalue)")
-# plot(abs(corsp), cex=1-corspp, pch=16)
-graphics.off()
+p1 <- ggplot(data_cor, aes(x=mean)) + 
+  geom_histogram(fill = 'lightgreen') + 
+  xlab('Average Expression') + labs(title='(a)')
+
+p2 <- ggplot(data_cor, aes(x=mean, y = variance)) + 
+  geom_point(color = 'lightgreen')+
+  xlab('Average Expression') + 
+  ylab('Variance')+ labs(title='(b)')
+
+p3 <- ggplot(data_cor, aes(x=corr_p)) + 
+  geom_histogram(fill = 'lightgreen')+
+  xlab('Pearson Correlation between Genes and Gestacional Age')+ labs(title='(c)')
+
+p4 <- ggplot(data_cor, aes(x=corr_p, y = corr_s)) + 
+  geom_point(color = 'lightgreen')+ labs(title='(d)')+
+  xlab('Pearson Correlation') + ylab('Spearman Correlation')
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
+
+# Exercise: 
+1. What can we conclude from these plots above? 
+2. Why we don't have the correlation between the gene expression and GA for the testing set? 
+
+Answer (delete): 
+1. a) The average expression is around 5. There are a few genes that are more expressed. b) There is no strong correlation between variance and average gene expression. c) The person correlation between the genes and the Gestacional Age looks like a normal distributio with mean equals 0. This means that most of genes will have a association equals 0. d) The correlation between the Spearman Correlation and Pearson correlation is very strong, meaning that we can use either Spearman or Pearson that the results will be very similar. 
+2. We don't make these correlation because we don't know the GA for the testing set. In fact, this is the exacly information that we are looking for. 
+
+
+```{r}
+
+
 
 
 
@@ -566,8 +611,8 @@ graphics.off()
 xi = "features_raw"
 model = "enet"
 # finalsol = llply(preds, function(x) x$pred[is.na(x$obs)])
-class_final$GA = round(preds0[[xi]]$pred[is.na(preds0[[xi]]$obs) & preds0[[xi]]$model==model],1)
-write.csv(class_final, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
+submission$GA = round(preds0[[xi]]$pred[is.na(preds0[[xi]]$obs) & preds0[[xi]]$model==model],1)
+write.csv(submission, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
 
 
 ```
