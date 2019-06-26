@@ -7,6 +7,8 @@ output: html_notebook
 - Write down better introduction 
 - Fix packages
 - add text about importance of feature extraction
+- explain RMSE
+- select models
 
 # input:
 - features: (samples x 32830/925032 gene/probeset) RNAseq counts (+extracted features); data has been batch and count normalized
@@ -372,6 +374,8 @@ for (model in models) {
 
 ```
 
+
+Instead of run everything, we can also load the results of the models. 
 ```{r}
 ## 3) load models -----------------------------------
 feat_dirs = list.dirs(model_dir, full.names=F)
@@ -387,6 +391,8 @@ names(result0) = feat_dirs
 
 ```
 
+
+We will compare the models using RMSE. Explain RMSE
 
 ```{r}
 result = unlist(result0,recursive=F)
@@ -407,28 +413,58 @@ df1 = ldply (names(result), function(i) {
 write.table(df1, file=paste0(result_dir,"/rmse_train.csv"))
 ```
 
+Now we will construct some graphics to evaluate which models produce the best results. 
+
+```{r}
+#Checking best set of features after remove RMSE bigger than 11
+df2 = subset(df1, rmse<11)
+
+#Organizing the plot
+df2$feature = as.character(df2$feature)
+df2$feature[df2$feature=='features_a']= 'Autoenconder'
+df2$feature[df2$feature=='features_ra']= 'Random Forest'
+df2$feature[df2$feature=='features_pca']= 'PCA'
+df2$feature[df2$feature=='features_raw']= 'Raw'
+
+
+barplot = data.frame(tapply(df2$rmse, df2$feature, mean))
+barplot = data.frame(Features = rownames(barplot), barplot)
+rownames(barplot) = NULL; names(barplot)[2] = "AverageRMSE"
+barplot$AverageRMSE = round(barplot$AverageRMSE,2)
+
+p5 <- ggplot(data = df1[df1$rmse<100,], aes(x=log(rmse))) + geom_histogram(fill = 'lightgreen') + 
+  xlab('log(RMSE)') + labs(title='(e)')
+
+p6 <- ggplot(data = df2, aes(x=feature,y=rmse)) + geom_boxplot(fill= 'lightgreen')+
+  xlab('Features')+ labs(title='(f)')
+
+
+p7 <- ggplot(data = barplot, aes(x=Features, y = AverageRMSE))+
+  geom_bar(stat = 'identity', fill='lightgreen')+
+  ylab('Average RMSE')+ labs(title='(g)')+
+  geom_text(aes(label=AverageRMSE), vjust=1.6, color="white", size=3.5)
+
+df1 = df1[order(df1$rmse,decreasing = FALSE),]
+df3 = df1[1:20,]
+
+p8<- ggplot(data = df3, aes(x=rmse)) + geom_histogram(fill = 'lightgreen') + 
+  xlab('RMSE') + labs(title='(g)')+xlab('RMSE top 20 models')
+p8
+
+grid.arrange(p5,p6,p7,p8, nrow = 2)
+
+```
+Exploring top 20 models
+```{r}
+top20 = data.frame(table(df3$model_))
+names(top20) = c('Model','Frequency')
+top20 = top20[order(top20$Frequency,decreasing = T),]
+top20 
+```
+
 
 
 ```{r}
-
-
-## 4) print all results as prediction plots -----------------------
-# result = unlist(result0, recursive=F)
-# scores = ldply(names(result), function(xi) {
-#   x = result[[xi]]
-#   score = laply(x, function(xi) xi$rmse)
-#   return(data.frame(feature.model=rep(xi,length(scores)),
-#                     rmse=score, cv=1:length(scores)))
-# })
-# 
-# png(paste0(result_dir, "/10cv.png"))
-# pl = barchart(rmse~feature.model, data=scores, groups=cv, 
-#               auto.key=list(columns=2),
-#               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
-#               main="rmse scores over 10-fold cv's")
-# print(pl)
-# dev.off()
-
 
 ## 4) get test prediction results from models ----------------------
 preds0 = llply(names(result0), function(xi) {
@@ -519,25 +555,6 @@ pl = barchart(abs(diff)~sample, data=trte_diff[order(trte_diff$diff),], groups=f
 print(pl)
 graphics.off()
 
-# xdiffs = ldply(names(result), function(xi) {
-#   xdiff = unlist(llply(result[[xi]], function(x) x$pte)) - meta$GA[tr_ind]
-#   return(data.frame(feature.model=rep(xi,length(xdiff)),
-#                     GAdiff=xdiff, sample=meta$SampleID[tr_ind]))
-# })
-# 
-# png(paste0(result_dir, "/10cv_sample.png"))
-# par(mfrow=c(1,2))
-# pl = barchart(GAdiff~sample, data=xdiffs, groups=feature.model, 
-#               auto.key=list(columns=2),
-#               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
-#               main="prediction - ground truth, over sample")
-# print(pl)
-# pl = barchart(abs(GAdiff)~sample, data=xdiffs, groups=feature.model, 
-#               auto.key=list(columns=2),
-#               cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
-#               main="absolute prediction - ground truth, over sample")
-# print(pl)
-# dev.off()
 
 
 ## 7) save final results of one model/feature ------------------
