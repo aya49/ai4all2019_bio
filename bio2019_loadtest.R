@@ -171,6 +171,8 @@ df
 
 ## 4) get test prediction results from models ----------------------
 pred = extractPrediction(t2i, testX=m0[te_ind,], testY=cte, unkX=m0[-tr_ind0,])
+pred = extractPrediction(t2i, testX = as.data.frame(features_), testY = ga_)
+
 
 # plot graph to compare models
 wth = 200

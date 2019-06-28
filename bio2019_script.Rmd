@@ -43,7 +43,7 @@ sapply(c(input_dir,feat_dir, model_dir, result_dir),
 
 ## load packages; need to fix according to what model we'll be using
 pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
-         "lattice", "ggplot2", # barplot, plots
+         "lattice", "ggplot2",'gridExtra', # barplot, plots
          "foreach", "doMC", # parallel back-end
          "caret", "e1071", "ranger", "ANN2", "randomForest",
          "elasticnet", "fastICA", "foba", "glmnet","kernlab", 
@@ -576,243 +576,128 @@ df = data.frame(
 df
 
 ```
+Now we will explore the predictions of these models+features:
 
-
-
-```{r}
-## 4) get test prediction results from models ----------------------
-pred = extractPrediction(t2i, testX=m0[te_ind,], testY=cte, unkX=m0[-tr_ind0,])
+```{r, results='hide', message=FALSE}
+##get test prediction results from models ----------------------
+pred = predict(t2i,newdata = as.data.frame(features_))
+pred_val = predict(t2i,newdata = as.data.frame(features_val))
+title = paste(feature_name,model, sep = '-')
 
 # plot graph to compare models
-wth = 200
-dir.create(paste0(result_dir,"/obsVSpred"), showWarnings=F)
-png(paste0(result_dir,"/obsVSpred/",xi,"_",model,".png"), width=wth)
-pl = plotObsVsPred(pred)
-print(pl)
-graphics.off()
+plot1 = data.frame(ga_,pred)
+plot2 = data.frame(ga_val, pred_val)
+pred1 <- ggplot(plot1, aes(x = ga_,y=pred)) + geom_point(color='orange')+
+  ylab('Predicted')+xlab('Training set')+labs(title=title)
+
+pred2 <- ggplot(plot2, aes(x = ga_val,y=pred_val)) + geom_point(color='orange')+
+  ylab('Predicted')+xlab('Validation set')
+
+grid1 <- grid.arrange(pred1, pred2, nrow = 1)
+ggsave(filename = paste(result_dir,'/','predictions-',title,'.png',sep=''),grid1)
+
+```
 
 
-## 5) get rmse results and plot ------------------------------------
-# preds = unlist(preds0,recursive=F)
-rmse = function(x,y) sqrt(mean((x-y)^2))
-rdf = ldply(unique(pred$model), function(mi) {
-  mii = pred$model==mi
-  pr = pred$pred[mii]
-  data.frame(rmse=c(rmse(pr[1:length(tr_ind)], ctr),
-                    rmse(pr[(length(tr_ind)+1):(length(tr_ind)+length(te_ind))], cte),
-                    rmse(pr[1:length(tr_ind0)], meta$GA[append(tr_ind,te_ind)])),
-             feature=rep(xi,3), model=rep(mi,3), type=c("train","test","all"))
-})
-rdf
+## Exercise 9: 
+Explore more combinations of models and features. Keep the results of the top 3 models you found. Discuss with your colleagues their results. Answer: 
+* Are they similar? How you defined which models were the best? 
+* Can you think in a more efficient way to compare all the models available? 
 
 
+###Model 1 
+```{r}
+# features
+feature_name = "features_a" # ra, a, pca, raw
+
+##load the features
+features = read.csv(paste0(feat_dir,"/", feature_name,'.csv'))
+rownames(features) = features[,1]
+features = as.matrix(features[,-1])
+
+#spliting the validation and testing set
+features_ = features[train_index_,]
+features_val = features[train_index_val,]
+
+# model options:
+#enet, foba, gaussprPolyg, gaussprRadial,glmnet, icr, kernelpls, krlsRadial, lars2, lasso, leapBackward, leapForward, leapSeq, nnls, partDSA, pls , plsRglm, rbf, rpart, rqlasso, rvmPoly, rvmRadial, simpls, spikeslab, spls, svmPoly, svmRadial, svmRadialCost, svmRadialSigma, widekernelpls, rqnc, nodeHarvest, mlpML, xgbDART
+#see https://topepo.github.io/caret/available-models.html for more information about each model
+
+model = "enet"
+parsi = expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)) # parsi = NULL; if no parameters need to be tested
+fitcv = trainControl(method="cv", number=cvn)
+
+fname = paste0(model_dir,"/",feature_name,"/",model,".Rdata")
+if (!file.exists(fname) | overwrite) { try ({
+  t2i = NULL
+  if (!is.null(parsi)) {
+    t2i = caret::train(y=ga_, x=features_, model, trControl=fitcv, tuneGrid=parsi)
+  } else {
+    t2i = caret::train(y=ga_, x=features_, model, trControl=fitcv)
+  }
+  if (!is.null(t2i)) save(t2i, file=fname)
+}) }
+load(fname)
+
+# results to data frame
+df = data.frame(
+  rmse=t2i$results$RMSE[which.min(t2i$results$RMSE)],
+  time=as.numeric(t2i$times$everything[3]),
+  model_=t2i$modelInfo$label, 
+  feature=feature_name, model=model, 
+  par=paste0( paste0(names(t2i$bestTune), collapse="_"), ": ", paste0(t2i$bestTune, collapse="_") )
+  , stringsAsFactors=F)
+df
+
+##get test prediction results from models ----------------------
+pred = predict(t2i,newdata = as.data.frame(features_))
+pred_val = predict(t2i,newdata = as.data.frame(features_val))
+title = paste(feature_name,model, sep = '-')
+
+# plot graph to compare models
+plot1 = data.frame(ga_,pred)
+plot2 = data.frame(ga_val, pred_val)
+pred1 <- ggplot(plot1, aes(x = ga_,y=pred)) + geom_point(color='orange')+
+  ylab('Predicted')+xlab('Training set')+labs(title=title)
+
+pred2 <- ggplot(plot2, aes(x = ga_val,y=pred_val)) + geom_point(color='orange')+
+  ylab('Predicted')+xlab('Validation set')
+
+grid1 <- grid.arrange(pred1, pred2, nrow = 1)
+grid1
+ggsave(filename = paste(result_dir,'/','predictions-',title,'.png',sep=''),grid1)
+
+```
+
+###model 2 
+```{r}
+
+```
+
+###model 3
+```{r}
+
+```
+
+
+#Prediction For the Competition 
+
+As all Data SCience/Machine Learning project, we have spend most of the time so far procesing the data, exploring the dataset, creating/selecting features, exploring different models to define which one is the best option for our main task: predict the Gestacional Age of our testing set. 
+
+Now, we will finale create the predictions for our test set. 
+
+```{r}
 
 ## 7) save final results of one model/feature ------------------
 
 # submission template
 class_final = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv")) 
-
 class_final$GA = round(pred$pred[is.na(pred$obs) & pred$model==model],1)
 write.csv(class_final, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
 ```
 
 
-Instead of run everything, we can also load the results of the models. 
-```{r}
-## 3) load models -----------------------------------
-feat_dirs = list.dirs(model_dir, full.names=F)
-feat_dirs = feat_dirs[!feat_dirs%in%""]
-result0 = llply(feat_dirs, function(data_type) { 
-  models = gsub(".Rdata","",list.files(paste0(model_dir,"/",data_type)))
-  a = llply(models, function(model) 
-    get(load(paste0(model_dir,"/", data_type,"/",model,".Rdata"))) )
-  names(a) = models
-  return(a)
-})
-names(result0) = feat_dirs
-
-```
-
-
-We will compare the models using RMSE. Explain RMSE
-
-```{r}
-result = unlist(result0,recursive=F)
-
-
-# results to data frame
-df1 = ldply (names(result), function(i) {
-  fm = str_split(i,"[.]")[[1]]
-  data.frame(
-    rmse=result[[i]]$results$RMSE[which.min(result[[i]]$results$RMSE)],
-    time=as.numeric(result[[i]]$times$everything[3]),
-    model_=result[[i]]$modelInfo$label, 
-    feature=fm[1], model=fm[2], 
-    par=paste0( paste0(names(result[[i]]$bestTune), collapse="_"), ": ", paste0(result[[i]]$bestTune, collapse="_") )
-    , stringsAsFactors=F)
-})
-
-write.table(df1, file=paste0(result_dir,"/rmse_train.csv"))
-```
-
-Now we will construct some graphics to evaluate which models produce the best results. 
-
-```{r}
-#Checking best set of features after remove RMSE bigger than 11
-df2 = subset(df1, rmse<11)
-
-#Organizing the plot
-df2$feature = as.character(df2$feature)
-df2$feature[df2$feature=='features_a']= 'Autoenconder'
-df2$feature[df2$feature=='features_ra']= 'Random Forest'
-df2$feature[df2$feature=='features_pca']= 'PCA'
-df2$feature[df2$feature=='features_raw']= 'Raw'
-
-
-barplot = data.frame(tapply(df2$rmse, df2$feature, mean))
-barplot = data.frame(Features = rownames(barplot), barplot)
-rownames(barplot) = NULL; names(barplot)[2] = "AverageRMSE"
-barplot$AverageRMSE = round(barplot$AverageRMSE,2)
-
-p5 <- ggplot(data = df1[df1$rmse<100,], aes(x=log(rmse))) + geom_histogram(fill = 'lightgreen') + 
-  xlab('log(RMSE)') + labs(title='(e)')
-
-p6 <- ggplot(data = df2, aes(x=feature,y=rmse)) + geom_boxplot(fill= 'lightgreen')+
-  xlab('Features')+ labs(title='(f)')
-
-
-p7 <- ggplot(data = barplot, aes(x=Features, y = AverageRMSE))+
-  geom_bar(stat = 'identity', fill='lightgreen')+
-  ylab('Average RMSE')+ labs(title='(g)')+
-  geom_text(aes(label=AverageRMSE), vjust=1.6, color="white", size=3.5)
-
-df1 = df1[order(df1$rmse,decreasing = FALSE),]
-df3 = df1[1:20,]
-
-p8<- ggplot(data = df3, aes(x=rmse)) + geom_histogram(fill = 'lightgreen') + 
-  xlab('RMSE') + labs(title='(g)')+xlab('RMSE top 20 models')
-
-grid.arrange(p5,p6,p7,p8, nrow = 2)
-
-```
-Exploring top 20 models
-```{r}
-top20 = data.frame(table(df3$model_))
-names(top20) = c('Model','Frequency')
-top20 = top20[order(top20$Frequency,decreasing = T),]
-top20 
-```
-
-
-In this chunk, we will load the features that we pre-processed. 
-The advange is that if something happen with the code and we need to restart, we don't need to wait for
-the code to run the features again, we can just load the results here. 
 
 
 
-```{r}
 
-## 4) get test prediction results from models ----------------------
-preds0 = llply(names(result0), function(xi) {
-  m0 = m0s[[xi]]
-  res = extractPrediction(result0[[xi]], 
-    testX=m0[te_ind,], testY=cte, unkX=m0[-tr_ind0,]) # some features don't have test data
-  return(res)
-}, .parallel=T)
-names(preds0) = names(result0)
-save(preds0,file=paste0(result_dir,"/preds.Rdata"))
-
-load(paste0(result_dir,"/preds.Rdata"))
-wth = 200
-dir.create(paste0(result_dir,"/obsVSpred"), showWarnings=F)
-for (pred0n in names(preds0)) {
-  # plot graph to compare models
-  png(paste0(result_dir,"/obsVSpred/",pred0n,".png"), 
-      width=wth*length(levels(preds0[[pred0n]]$model)))
-  pl = plotObsVsPred(preds0[[pred0n]])
-  print(pl)
-  graphics.off()
-  
-  # png(paste0(result_dir,"/",xi,"_rmse.png"))
-  # dotplot(caret::resamples(preds0[[xi]]))
-  # graphics.off()
-}
-
-
-## 5) get rmse results and plot ------------------------------------
-# preds = unlist(preds0,recursive=F)
-rmse = function(x,y) sqrt(mean((x-y)^2))
-rmsedf = ldply(names(preds0), function(xi) {
-  x = preds0[[xi]]
-  ldply(unique(x$model), function(mi) {
-    mii = x$model==mi
-    pr = x$pred[mii]
-    data.frame(rmse=c(rmse(pr[1:length(tr_ind)], ctr),
-                      rmse(pr[(length(tr_ind)+1):(length(tr_ind)+length(te_ind))], cte),
-                      rmse(pr[1:length(tr_ind0)], meta$GA[append(tr_ind,te_ind)])),
-               feature=rep(xi,3), model=rep(mi,3), type=c("train","test","all"))
-  })
-})
-write.csv(rmsedf, file=paste0(result_dir,"/rmse.csv"))
-
-wth = 2000
-png(paste0(result_dir,"/rmse_all.png"), width=wth)
-par(mfrow=c(3,1))
-pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="all",,drop=F], groups=feature, 
-              auto.key = list(columns=2),
-              cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
-              main="all rmse for each model grouped by feature type")
-print(pl)
-graphics.off()
-png(paste0(result_dir,"/rmse_test.png"), width=wth)
-pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="test",,drop=F], groups=feature, 
-              auto.key = list(columns=2),
-              cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
-              main="test")
-print(pl)
-graphics.off()
-png(paste0(result_dir,"/rmse_train.png"), width=wth)
-pl = barchart(rmse~model, data=rmsedf[rmsedf$type=="train",,drop=F], groups=feature, 
-              auto.key = list(columns=2),
-              cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
-              main="train")
-print(pl)
-graphics.off()
-
-
-## 6) check for outlier subjects ------------------------------------
-trte_diff = ldply(names(preds0), function(xi) {
-  x = preds0[[xi]]
-  xdf = ldply(unique(x$model), function(mi) {
-    mii = x$model==mi
-    pr = x$pred[mii]
-    ob = x$pred[mii]
-    mdf = data.frame(diff=c(pr[1:length(tr_ind0)] - meta$GA[append(tr_ind,te_ind)]), feat.model=paste0(rep(xi,length(tr_ind0)), ".", rep(mi,length(tr_ind0))), sample=meta$SampleID[append(tr_ind,te_ind)])
-    return(mdf)
-  })
-  return(xdf)
-})
-
-png(paste0(result_dir,"/outliers.png"), width=5000)
-pl = barchart(abs(diff)~sample, data=trte_diff[order(trte_diff$diff),], groups=feat.model, 
-              auto.key = list(columns=5),
-              cex.axis=3, scales=list(x=list(rot=90,cex=0.8)), 
-              main="all abs(pred-obs) for each sample grouped by feature.model type")
-print(pl)
-graphics.off()
-
-
-
-## 7) save final results of one model/feature ------------------
-xi = "features_raw"
-model = "enet"
-# finalsol = llply(preds, function(x) x$pred[is.na(x$obs)])
-submission$GA = round(preds0[[xi]]$pred[is.na(preds0[[xi]]$obs) & preds0[[xi]]$model==model],1)
-write.csv(submission, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
-
-
-```
-
-
-
-All models available: 
