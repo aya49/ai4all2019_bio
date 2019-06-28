@@ -296,13 +296,16 @@ features = read.csv(paste(feat_dir,"/features_",feature_type,'.csv', sep = ''))
 rownames(features) = features[,1]
 features = as.matrix(features[,-1])
 
+#SPliting features of training and validation set
 features_ = features[train_index_,]
 features_val = features[train_index_val,]
-
 train_ = data.frame(ga_,features_)
-model1 = lm(ga_ ~ .,data = train_)
-predictions_m1 = predict(model1, newdata = train_[,-1])
 
+#Linear REgression model
+model1 = lm(ga_ ~ .,data = train_)
+#Predictions
+predictions_m1 = predict(model1, newdata = train_[,-1])
+#Error from the observed values and fitted values
 rmse(ga_, predictions_m1)
 
 ```
@@ -394,38 +397,107 @@ Calculate the predictions for features_val and ga_val using Random Forest. With 
 
 
 ### Exercise 6:
-Repite the Linear Regression, SCM and Random Forest with 2 other sets of features (options are 'raw', 'ra' for random forest, 'a' for autoencoder or 'unique' from  Exercise 2). From the set of features you choose, which one have the best result? Why?
+Repite the Linear Regression, SCM and Random Forest with 2 other sets of features: 'raw', 'ra' for random forest or 'a' for autoencoder and the 'unique' set of features you made on  Exercise 2. From the set of features you choose, which one have the best result? Why?
 
 SET OF FEATURES 1
 ```{r, warning=FALSE}
+#----------------------   CHANGE HERE
 #feature_type =  #options are 'pca', 'raw', 'ra' for random forest and 'a' for autoencoder
+
 ## 0) load feature 
 features = read.csv(paste(feat_dir,"/features_",feature_type,'.csv', sep = ''))
 rownames(features) = features[,1]
 features = as.matrix(features[,-1])
-
 features_ = features[train_index_,]
 features_val = features[train_index_val,]
-
 train_ = data.frame(ga_,features_)
 
-#Linear Regression
+#----------------------   Linear Regression
 model1 = lm(ga_ ~ .,data = train_)
 predictions_m1 = predict(model1, newdata = train_[,-1])
-
 rmse(ga_, predictions_m1)
 
-```
-```{r}
+#PLOT 
 plotdata = data.frame(ga_,predictions_m1)
 ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
   geom_point(color = 'lightgreen')+
   xlab('Linear Regression Model - Training Set')+
   ylab('Predicted Values')
 
+#----------------------   CHANGE HERE: ADD LINEAR REGRESSION FOR THE VALIDATION SET 
+
+#----------------------   ADD SVM FOR TRAINING AND VALIDATION SET 
+
+#----------------------   ADD RAM FOR TRAINING AND VALIDATION SET 
 
 
-ALICE: Explain RMSE
+
+
+
+
+```
+
+
+SET OF FEATURES unique
+```{r, warning=FALSE}
+#----------------------   CHANGE HERE
+#feature_type =  #options are 'pca', 'raw', 'ra' for random forest and 'a' for autoencoder
+
+## 0) load feature 
+features = read.csv(paste(feat_dir,"/features_",feature_type,'.csv', sep = ''))
+rownames(features) = features[,1]
+features = as.matrix(features[,-1])
+features_ = features[train_index_,]
+features_val = features[train_index_val,]
+train_ = data.frame(ga_,features_)
+
+#----------------------   Linear Regression
+model1 = lm(ga_ ~ .,data = train_)
+predictions_m1 = predict(model1, newdata = train_[,-1])
+rmse(ga_, predictions_m1)
+
+#PLOT 
+plotdata = data.frame(ga_,predictions_m1)
+ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
+  geom_point(color = 'lightgreen')+
+  xlab('Linear Regression Model - Training Set')+
+  ylab('Predicted Values')
+
+#----------------------   CHANGE HERE: ADD LINEAR REGRESSION FOR THE VALIDATION SET 
+
+#----------------------   ADD SVM FOR TRAINING AND VALIDATION SET 
+
+#----------------------   ADD RAM FOR TRAINING AND VALIDATION SET 
+
+
+
+
+
+
+```
+
+###Exercise 7: 
+Create a plot to identify which model or set of features is the best between so far. 
+
+```{r}
+#Saving the results of the predictions when the .unique features were used 
+output_unique = data.frame(
+  model = c('LR','RVM','RF'),
+  feature = c(rep('unique',3) ),
+  rmse_t = c(rmse(ga_, predictions_m1),rmse(ga_,predictions_m2),rmse(ga_,predictions_m3$predictions) ),
+  rmse_val = c(rmse(ga_val, predictions_m1v),rmse(ga_val,predictions_m2v),rmse(ga_val,predictions_m3v$predictions) )
+)
+
+output = read.table(paste0(input_dir,'//output_basic_models.csv'),sep=',', header=T)
+output = rbind(output,output_unique)
+```
+
+
+```{r}
+#p7<- ggplot(data = output, aes(x = , y = )) +
+#p8<- ggplot(data = output, aes(x = , y = )) + 
+```
+
 
 
 #RAQUEL STOPPED HERE, CODE BELLOW NOT ORGANIZED

@@ -203,3 +203,52 @@ class_final = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv"))
 
 class_final$GA = round(pred$pred[is.na(pred$obs) & pred$model==model],1)
 write.csv(class_final, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
+
+
+
+
+#RAQUEL SHORT CODE
+feature_type = c('pca',  'raw', 'ra' ,'a')
+rmse_t = c()
+rmse_val = c()
+feature = c()
+model = c()
+for(i in 1:length(feature_type)){
+  features = read.csv(paste(feat_dir,"/features_",feature_type[i],'.csv', sep = ''))
+  rownames(features) = features[,1]
+  features = as.matrix(features[,-1])
+
+  #SPliting features of training and validation set
+  features_ = features[train_index_,]
+  features_val = features[train_index_val,]
+  train_ = data.frame(ga_,features_)
+  
+
+  #Linear REgression model
+  model1 = lm(ga_ ~ .,data = train_)
+  model2 = rvm(x = features_, ga_, type="regression")
+  model3 = ranger(ga_~.,data = train_)
+  
+  #Predictions
+  predictions_m1 = predict(model1, newdata = train_[,-1])
+  predictions_m2 = predict(model2,data = as.data.frame(features_))
+  predictions_m3 = predict(model3, data = as.data.frame(features_)) 
+  
+  rmse_t = c(rmse_t,rmse(ga_, predictions_m1),rmse(ga_,predictions_m2),rmse(ga_,predictions_m3$predictions))
+
+  #Predictions
+  predictions_m1v = predict(model1, newdata = as.data.frame(features_val))
+  predictions_m2v = predict(model2,data = as.data.frame(features_val))
+  predictions_m3v = predict(model3, data = as.data.frame(features_val)) 
+  
+  rmse_val = c(rmse_val,rmse(ga_val, predictions_m1v),rmse(ga_val,predictions_m2v),rmse(ga_val,predictions_m3v$predictions))
+  feature = c(feature,rep(feature_type[i],3))
+  model = c(model,'LR','RVM','RF')
+
+  }
+
+output_basic_models = data.frame(model, feature,rmse_t,rmse_val)
+#write.csv(output_basic_models, paste0(input_dir,'/output_basic_models.csv'), row.names = T)
+
+
+
