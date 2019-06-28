@@ -278,6 +278,7 @@ if(file.exists(cvinds_path)){
 } else {
   cvn = 10
   train_index = which(meta$Train==1) #selecting only the training examples
+  test_index = which(meta$Train==0)
   train_index_val = sample(train_index, ceiling(length(train_index)/11)) #cross validation set
   train_index_ = sample(train_index[!train_index%in%train_index_val]) #removing cross validation set from training set 
   ga_val = as.numeric(meta$GA[train_index_val])
@@ -687,13 +688,22 @@ As all Data SCience/Machine Learning project, we have spend most of the time so 
 Now, we will finale create the predictions for our test set. 
 
 ```{r}
+#RUN HERE ONCE MORE THE MODEL YOU THINK IS THE BEST
+#REMEMBER TO LOAD THE FEATURES AND TRAIN THE MODEL USING THE TRAINING SET
+```
 
-## 7) save final results of one model/feature ------------------
+
+
+```{r}
+features_pred = features[test_index,]
+
+#INSERT HERE MODEL
+#predictions = predict(-MODEL-, data = as.data.frame(features_pred)) 
 
 # submission template
 class_final = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv")) 
-class_final$GA = round(pred$pred[is.na(pred$obs) & pred$model==model],1)
-write.csv(class_final, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
+class_final$GA = round(predictions,1)
+write.csv(class_final, file=paste0(result_dir,"/submission_file.csv"))
 ```
 
 
