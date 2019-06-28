@@ -197,7 +197,7 @@ We will use 5 methods do extract features.
 4. Random Forest 
 5. Autoenconder 
 
-```{r}
+```{r, results='hide'}
 
 ## 1 and 2) Removing genes with low variance and low absolute correlation
 data_cor$corr_p = abs(data_cor$corr_p)
@@ -207,8 +207,6 @@ data2 = subset(data0, select = keep$col)
 
 ## Saving for future use
 write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T)
-
-
 
 ```
 
@@ -254,7 +252,7 @@ write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
 2. Choose between PCA and Random Forest. Try to save a new features set with a different number of features. 
 
 ```{r}
-#feat.unique = predict(PrePCA,data2) #for pca
+#feat.unique = predict(PrePCA,data2) #for pca OR
 #feat.unique = data2[] #for random forest
 #write.csv(feat.unique, )
 
@@ -263,19 +261,7 @@ write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
 
 #3. Machine Learning models
 
-In this section we will work on the prediction task. 
-For this, we will test several machine learning models to see which one produced the lowest error. 
-We will compare which set of features also produce the best results. 
-
-We will first test 4 models: 
-1. Linear Regression 
-2. RVM
-3. Random Forest 
-4. Neural Network
-
-In this chunk, we will load the features that we pre-processed. 
-The advange is that if something happen with the code and we need to restart, we don't need to wait for
-the code to run the features again, we can just load the results here. 
+In this section we will work which the Machine Learning Models. We have 5 different sets of features (RAW, PCA, RA, A, UNIQUE) and we will first work with 3 models: Linear Regression, RVM and Random Forest. The best model will be selected based on the difference between the values we observed on the training set for GA (Gestacional Age) and the predicted values for the combination of MODEL+FEATURE. The lowest is this difference on the validation set, the better. 
 
 
 ALICE: Explain better here what this part is doing
@@ -332,12 +318,12 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
 ### Exercise 3: 
 Calculate the predictions for features_val and ga_val using linear regression. With the predicted values, make a plot predictions_m1_val and ga_val
 ```{r, warning=FALSE}
-predictions_m1_val = predict()
-rmse()
+#predictions_m1_val = predict()
+#rmse()
 ```
 ```{r}
-plotdata = data.frame()
-ggplot(plotdata, aes(x = ,y = ))+geom_point(color = '')+xlab('')+ylab('')
+#plotdata = data.frame()
+#ggplot(plotdata, aes(x = ,y = ))+geom_point(color = '')+xlab('')+ylab('')
 
 ```
 
@@ -364,14 +350,14 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m2))+
 ### Exercise 4: 
 Calculate the predictions for features_val and ga_val using rvm. With the predicted values, make a plot predictions_m1_val and ga_val
 ```{r, warning=FALSE}
-predictions_m2_val = predict()
-rmse()
+#predictions_m2_val = predict()
+#rmse()
 ```
 
 
 ```{r}
-plotdata = data.frame()
-ggplot(plotdata, aes(x = ,y = ))+geom_point(color = '')+xlab('')+ylab('')
+#plotdata = data.frame()
+#ggplot(plotdata, aes(x = ,y = ))+geom_point(color = '')+xlab('')+ylab('')
 
 ```
 
@@ -395,20 +381,47 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m3.predictions))+
 ### Exercise 5: 
 Calculate the predictions for features_val and ga_val using Random Forest. With the predicted values, make a plot predictions_m1_val and ga_val
 ```{r, warning=FALSE}
-predictions_m3_val = predict()
-rmse()
+#predictions_m3_val = predict()
+#rmse()
 ```
 
 
 ```{r}
-plotdata = 
-ggplot(plotdata, aes(x = ,y = ))+geom_point(color = '')+xlab('')+ylab('')
+#plotdata = 
+#ggplot(plotdata, aes(x = ,y = ))+geom_point(color = '')+xlab('')+ylab('')
 
 ```
 
 
 ### Exercise 6:
+Repite the Linear Regression, SCM and Random Forest with 2 other sets of features (options are 'raw', 'ra' for random forest, 'a' for autoencoder or 'unique' from  Exercise 2). From the set of features you choose, which one have the best result? Why?
 
+SET OF FEATURES 1
+```{r, warning=FALSE}
+#feature_type =  #options are 'pca', 'raw', 'ra' for random forest and 'a' for autoencoder
+## 0) load feature 
+features = read.csv(paste(feat_dir,"/features_",feature_type,'.csv', sep = ''))
+rownames(features) = features[,1]
+features = as.matrix(features[,-1])
+
+features_ = features[train_index_,]
+features_val = features[train_index_val,]
+
+train_ = data.frame(ga_,features_)
+
+#Linear Regression
+model1 = lm(ga_ ~ .,data = train_)
+predictions_m1 = predict(model1, newdata = train_[,-1])
+
+rmse(ga_, predictions_m1)
+
+```
+```{r}
+plotdata = data.frame(ga_,predictions_m1)
+ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
+  geom_point(color = 'lightgreen')+
+  xlab('Linear Regression Model - Training Set')+
+  ylab('Predicted Values')
 
 
 
