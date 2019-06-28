@@ -4,13 +4,7 @@ output: html_notebook
 ---
 
 # Todo:
-- Write down better introduction 
-- Fix packages
-- add text about importance of feature extraction
-- explain RMSE
-- select models
-
-Alice:  Check which packages are still being used 
+- function to load features
 
 
 # input:
@@ -529,14 +523,27 @@ output = rbind(output,output_unique)
 Basides the models shown in the prevous section, there are many other models or variations of that models we could use to explore this problem. However, some of them are more time consuming, thus we trained some extra models and we saved their results, so now all we need is make the predictions and check their RMSE. 
 
 
-
+First we define the features and the model we want to explore:
 ```{r}
 # overwrite model?
 overwrite = F
 
 # features
-features = "features_raw" # ra, a, pca
+feature_name = "features_a" # ra, a, pca, raw
 
+##load the features
+features = read.csv(paste0(feat_dir,"/", feature_name,'.csv'))
+rownames(features) = features[,1]
+features = as.matrix(features[,-1])
+
+#spliting the validation and testing set
+features_ = features[train_index_,]
+features_val = features[train_index_val,]
+```
+
+
+Then we run this chunk that will load the model case the model is available or run the model with the features and model specified.
+```{r}
 # model options:
 #enet, foba, gaussprPolyg, gaussprRadial,glmnet, icr, kernelpls, krlsRadial, lars2, lasso, leapBackward, leapForward, leapSeq, nnls, partDSA, pls , plsRglm, rbf, rpart, rqlasso, rvmPoly, rvmRadial, simpls, spikeslab, spls, svmPoly, svmRadial, svmRadialCost, svmRadialSigma, widekernelpls, rqnc, nodeHarvest, mlpML, xgbDART
 #see https://topepo.github.io/caret/available-models.html for more information about each model
@@ -545,23 +552,14 @@ model = "enet"
 parsi = expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)) # parsi = NULL; if no parameters need to be tested
 fitcv = trainControl(method="cv", number=cvn)
 
-```
 
-
-
-```{r}
-## 2) test regression models ---------------------------------
-
-# best RMSE parameters chosen by default
-mtr = m0[tr_ind,]
-dir.create(paste0(model_dir,"/",xi), showWarnings=F)
-fname = paste0(model_dir,"/",xi,"/",model,".Rdata")
+fname = paste0(model_dir,"/",feature_name,"/",model,".Rdata")
 if (!file.exists(fname) | overwrite) { try ({
   t2i = NULL
   if (!is.null(parsi)) {
-    t2i = caret::train(y=ctr, x=mtr, model, trControl=fitcv, tuneGrid=parsi)
+    t2i = caret::train(y=ga_, x=features_, model, trControl=fitcv, tuneGrid=parsi)
   } else {
-    t2i = caret::train(y=ctr, x=mtr, model, trControl=fitcv)
+    t2i = caret::train(y=ga_, x=features_, model, trControl=fitcv)
   }
   if (!is.null(t2i)) save(t2i, file=fname)
 }) }
@@ -572,7 +570,7 @@ df = data.frame(
   rmse=t2i$results$RMSE[which.min(t2i$results$RMSE)],
   time=as.numeric(t2i$times$everything[3]),
   model_=t2i$modelInfo$label, 
-  feature=xi, model=model, 
+  feature=feature_name, model=model, 
   par=paste0( paste0(names(t2i$bestTune), collapse="_"), ": ", paste0(t2i$bestTune, collapse="_") )
   , stringsAsFactors=F)
 df
@@ -710,20 +708,6 @@ In this chunk, we will load the features that we pre-processed.
 The advange is that if something happen with the code and we need to restart, we don't need to wait for
 the code to run the features again, we can just load the results here. 
 
-```{r}
-## 0) load features
-
-feat_paths = list.files(feat_dir) # feature paths
-features = llply(feat_paths, 
-            function(xi) {
-              feat = read.csv(paste0(feat_dir,"/", xi))
-              rownames(feat) = feat[,1]
-              feat = as.matrix(feat[,-1])
-              }
-            )
-names(features) = gsub(".csv","",feat_paths)
-
-```
 
 
 ```{r}
