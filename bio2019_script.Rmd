@@ -3,23 +3,18 @@ title: "Invent the Future"
 output: html_notebook
 ---
 
-# Todo:
-- function to load features
-
-
-# input:
+# Input Files:
 - features: (samples x 32830/925032 gene/probeset) RNAseq counts (+extracted features); data has been batch and count normalized
-- class: (367 train sample) gestational age 8-42 weeks
+- Value: (367 train sample) gestational age 8-42 weeks
 
-# output:
-- class: (368 test sample) gestational age 8-42 weeks rounded to 1 decimal place
+# Output:
+- Value: (368 test sample) gestational age 8-42 weeks rounded to 1 decimal place
 
 # Data Analysis 
 
 ##1. Preprocessing  
 
 In the first part we will work on the environment we will use. This means we will clean the environment, declare the directory of the project and install libraries.  
-
 
 
 ```{r, warning=FALSE, message=FALSE, error = FALSE  , results = 'hide' }
@@ -160,13 +155,13 @@ p4 <- ggplot(data_cor, aes(x=corr_p, y = corr_s)) +
 grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
 
-# Exercise 1: 
+### Exercise 1: 
 1. What can we conclude from these plots above? 
 2. Why we don't have the correlation between the gene expression and GA for the testing set? 
 3. Can you think in any other intesresting plots or analysis? 
 
 ```{r}
-#insert here a new plot or anaylysis you think is instering
+#insert here a new plot or analysis you think is instering
 
 ```
 
@@ -176,13 +171,9 @@ Answer (delete):
 1. a) The average expression is around 5. There are a few genes that are more expressed. b) There is no strong correlation between variance and average gene expression. c) The person correlation between the genes and the Gestacional Age looks like a normal distributio with mean equals 0. This means that most of genes will have a association equals 0. d) The correlation between the Spearman Correlation and Pearson correlation is very strong, meaning that we can use either Spearman or Pearson that the results will be very similar. 
 2. We don't make these correlation because we don't know the GA for the testing set. In fact, this is the exacly information that we are looking for. 
 
-#2. Features Extraction 
+##2. Features Extraction 
 
 The original dataset has 32830 genes expressions. However, from the plot of the correlation we already know that some of these genes aren't associate with GA. Besides, genes with a very low variance might don't contribute for the prediction of gestacional age. Also, large datasets might add noise to machine leanring models. 
-
-
-ADD MORE INFO HERE ABOUT IMPORTANCE OF FEATURE EXTTRACTION
-
 
 We will use 5 methods do extract features. 
 1. Elimination of 30% of genes with lowest variance; 
@@ -253,7 +244,7 @@ write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
 ```
 
 
-#3. Machine Learning models
+##3. Machine Learning models
 
 In this section we will work which the Machine Learning Models. We have 5 different sets of features (RAW, PCA, RA, A, UNIQUE) and we will first work with 3 models: Linear Regression, RVM and Random Forest. The best model will be selected based on the difference between the values we observed on the training set for GA (Gestacional Age) and the predicted values for the combination of MODEL+FEATURE. The lowest is this difference on the validation set, the better. 
 
@@ -263,7 +254,7 @@ Typically, data sets are split up into a train and test set; we extract these in
 
 Therefore, we further split the train set into ```cvn```=10 equal sized chunks. Since we know the Ga to all our train samples, we can evaluate the model a total of 10 times, each time training the model 9 of the chunks and testing the model on 1 of the chunks. Thereafter, these metrics can be combined (e.g. via a mean) to produce an appropriate evaluation of the model.
 
-# Exercise 3:
+### Exercise 3:
 1. Why do we want to perform cross validation? Why would we cross validating the model ```cvn``` times over just 1 time?
 
 Answer (delete): 
@@ -292,7 +283,7 @@ require(Metrics)
 
 The RMSE (root mean squared error) is a metric that indicates how different our models' predicted GA are compared to the true GA. In other words, the smaller the RMSE, the better.This will be the metric used to compare the models we will be working on. 
 
-##3.1 Linear Regression 
+###3.1 Linear Regression 
 
 Remember $y=ax+b$? That's linear regression in a nutshell. Linear regression assumes that there is a linear relationship between the given multidimensional RNAseq train data $x$ and the corresponding variable we want to predict GA $y$. $a$ represents the slope and $b$ represents the y-intercept. In the real world though, there often isn't a perfect linear relationship, so below, we try to estimate the best line (i.e. $a$ and $b$ parameters) given $x$ and $y$.
 
@@ -341,7 +332,7 @@ Calculate the predictions for features_val and ga_val using linear regression. W
 
 
 
-##3.2 RVM
+###3.2 RVM
 
 
 RVM (relevance vector machines) is an application of the Bayesian treatment of general linear models to SVMs (support vector machines). 
@@ -383,7 +374,7 @@ Calculate the predictions for features_val and ga_val using rvm. With the predic
 ```
 
 
-##3.3 Random Forest
+###3.3 Random Forest
 
 A random forest is an aggregate of decision trees formed via model training. A decision tree is a decision making template in the form of "if this then that"; in our case, this decision would be "if this gene is expressed often, then the woman is in her 32nd week of gestation". 
 
@@ -600,13 +591,13 @@ ggsave(filename = paste(result_dir,'/','predictions-',title,'.png',sep=''),grid1
 ```
 
 
-## Exercise 9: 
+### Exercise 9: 
 Explore more combinations of models and features. Keep the results of the top 3 models you found. Discuss with your colleagues their results. Answer: 
 * Are they similar? How you defined which models were the best? 
 * Can you think in a more efficient way to compare all the models available? 
 
 
-###Model 1 
+####Model 1 
 ```{r}
 # features
 feature_name = "features_a" # ra, a, pca, raw
@@ -670,12 +661,12 @@ ggsave(filename = paste(result_dir,'/','predictions-',title,'.png',sep=''),grid1
 
 ```
 
-###model 2 
+####model 2 
 ```{r}
 
 ```
 
-###model 3
+####model 3
 ```{r}
 
 ```
