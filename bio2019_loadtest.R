@@ -248,7 +248,7 @@ for(i in 1:length(feature_type)){
   }
 
 output_basic_models = data.frame(model, feature,rmse_t,rmse_val)
-#write.csv(output_basic_models, paste0(input_dir,'/output_basic_models.csv'), row.names = T)
+#write.csv(output_basic_models, paste0(input_dir,'/output_basic_models.csv'), row.names = F)
 
 
 
