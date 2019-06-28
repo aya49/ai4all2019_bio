@@ -10,8 +10,7 @@ output: html_notebook
 - explain RMSE
 - select models
 
-Alice: 
-- Check which packages are still being used 
+Alice:  Check which packages are still being used 
 
 
 # input:
@@ -241,6 +240,7 @@ write.csv(feat.ra, paste0(feat_dir,'/features_ra.csv'), row.names = T)
 
 ```
 
+
 ```{r}
 ## 5) Autoencoder 
 if(!exists('preA')){
@@ -347,6 +347,9 @@ RAQUEL: ADD CODE
 
 
 ```
+
+
+ALICE: Explain RMSE
 
 
 #RAQUEL STOPPED HERE, CODE BELLOW NOT ORGANIZED
