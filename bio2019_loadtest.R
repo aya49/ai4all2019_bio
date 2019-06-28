@@ -99,6 +99,11 @@ graphics.off()
 # 1: feature extraction & model testing -----------------------
 #--------#--------#--------#--------#--------#--------#--------
 
+
+#TODO: ADD CORRELATION, VARIANCE, PCA
+#TODO: DESCRIBE RA, A AND JUST LOAD THESE
+
+
 # overwrite model?
 overwrite = F
 
@@ -134,6 +139,8 @@ fitcv = trainControl(method="cv", number=cvn)
 
 
 ## 2) test regression models ---------------------------------
+
+#TOD: CHANGE M0 NAME
 
 # best RMSE parameters chosen by default
 mtr = m0[tr_ind,]

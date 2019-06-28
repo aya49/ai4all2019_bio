@@ -10,6 +10,9 @@ output: html_notebook
 - explain RMSE
 - select models
 
+Alice: 
+- Check which packages are still being used 
+
 
 # input:
 - features: (samples x 32830/925032 gene/probeset) RNAseq counts (+extracted features); data has been batch and count normalized
@@ -47,7 +50,7 @@ sapply(c(input_dir,feat_dir, model_dir, result_dir),
 
 ## load packages; need to fix according to what model we'll be using
 pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
-         "lattice", "ggplot2", "grid","gridExtra", # barplot, plots
+         "lattice", "ggplot2", # barplot, plots
          "foreach", "doMC", # parallel back-end
          "caret", "e1071", "ranger", "ANN2", "randomForest",
          "elasticnet", "fastICA", "foba", "glmnet","kernlab", 
@@ -61,7 +64,11 @@ sapply(pkgs, require, character.only=T)
 ## script options
 #no_cores = detectCores()-1 # number of cores to use in parallel
 #registerDoMC(no_cores)
-#overwrite = F # overwrite results?
+overwrite = F 
+
+
+#load workspace for time consuming tasks 
+load(paste(input_dir,'script.RData',sep='\\'))
 
 ```
 
@@ -165,6 +172,13 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
 2. Why we don't have the correlation between the gene expression and GA for the testing set? 
 3. Can you think in any other intesresting plots or analysis? 
 
+```{r}
+#insert here a new plot or anaylysis you think is instering
+
+```
+
+
+
 Answer (delete): 
 1. a) The average expression is around 5. There are a few genes that are more expressed. b) There is no strong correlation between variance and average gene expression. c) The person correlation between the genes and the Gestacional Age looks like a normal distributio with mean equals 0. This means that most of genes will have a association equals 0. d) The correlation between the Spearman Correlation and Pearson correlation is very strong, meaning that we can use either Spearman or Pearson that the results will be very similar. 
 2. We don't make these correlation because we don't know the GA for the testing set. In fact, this is the exacly information that we are looking for. 
@@ -196,29 +210,45 @@ data2 = subset(data0, select = keep$col)
 write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T)
 
 
+
+```
+
+```{r}
 ## 3) PCA
 PrePCA = preProcess(data2,method="pca")
 feat.pca = predict(PrePCA,data2)
 write.csv(feat.pca, paste0(feat_dir,'/features_pca.csv'), row.names=T)
 
-## 4) Random Forest --------------------------------------------
+
+
+```
+
+```{r}
+## 4) Random Forest 
 metric = "Accuracy"
 GA = data1$GA
 data1 = subset(data1, select =keep$col)
 data1 = data.frame(GA, data1)
-PreRF = caret::train(y=data1$GA, x=data1[,-1],  method='ranger',importance='impurity')
-PreRF.i = varImp(PreRF)$importance
+if(!exists('PreRF')){
+  PreRF = caret::train(y=data1$GA, x=data1[,-1],  method='ranger',importance='impurity')
+  PreRF.i = varImp(PreRF)$importance
+}else{
+  PreRF.i = varImp(PreRF)$importance
+}
 
 feat.ra = data2[,order(PreRF.i, decreasing=T)[1:500]]
 write.csv(feat.ra, paste0(feat_dir,'/features_ra.csv'), row.names = T)
 
-## 5) Autoencoder --------------------------------------------
-preA = autoencoder(data2, hidden.layers = c(1000, 500, 1000))
-feat.A = encode(preA, data2)
+```
+
+```{r}
+## 5) Autoencoder 
+if(!exists('preA')){
+  preA = autoencoder(data2, hidden.layers = c(1000, 500, 1000))
+  feat.A = encode(preA, data2)  
+}
 rownames(feat.A) = rownames(feat.ra)
 write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
-
-#save.image()
 ```
 
 
@@ -228,50 +258,19 @@ In this section we will work on the prediction task.
 For this, we will test several machine learning models to see which one produced the lowest error. 
 We will compare which set of features also produce the best results. 
 
-We will test X models: 
-* enet: Fits Elastic Net Regression Models
-* foba: Greedy variable selection for ridge regression (?)
-* gaussprPolyg: Gaussian Process with Polynomial Kernel
-* gaussprRadial: Gaussian Process with Radial Basis Function Kernel
-* glmnet: Elastic net model paths for some generalized linear models
-* icr: linear regression model using independent components
-* kernelpls: Fits a PLSR(Partial Least Squares Regression) model with the kernel algorithm.
-* krlsRadial:
-* lars2      
-* lasso: regression least absolute shrinkage and selection operator
-* leapBackward: regression  
-* leapForward: regression 
-* leapSeq: regression 
-* nnls: regression, non-negative least squares
-* null
-* partDSA: Partitioning Using Deletion, Substitution, and Addition Moves
-* pls: Partial Least Squares Regression      
-* plsRglm: Partial Least Squares Regression    
-* rbf: Radial Basis Function 
-* rpart: Recursive Partitioning And Regression Trees
-* rqlasso: Ridge Regression and the Lasso
-* rvmPoly: Least squares support vector machines poly kernel
-* rvmRadial: regression vector machine radial kernel
-* simpls: PLSR model with the SIMPLS algorithm
-* spikeslab:Prediction and variable selection using spike and slab regression
-* spls: Sparse Partial Least Squares 
-* svmPoly: Support Vector Machines with Polynomial Kernel 
-* svmRadial: Support Vector Machines with Radial 
-* svmRadialCost: Support Vector Machines with Radial
-* svmRadialSigma: Support Vector Machines with kernel
-* widekernelpls: no info
-* rqnc: no info 
-* nodeHarvest: tree-like estimator
-* mlpML: Multilayer Perceptron
-* xgbDART
-
-
+We will first test 4 models: 
+1. Linear Regression 
+2. RVM
+3. Random Forest 
+4. Neural Network
 
 In this chunk, we will load the features that we pre-processed. 
 The advange is that if something happen with the code and we need to restart, we don't need to wait for
 the code to run the features again, we can just load the results here. 
+
 ```{r}
 ## 0) load features
+
 feat_paths = list.files(feat_dir) # feature paths
 features = llply(feat_paths, 
             function(xi) {
@@ -284,9 +283,7 @@ names(features) = gsub(".csv","",feat_paths)
 
 ```
 
-
-
-Explain better here what this part is doing
+ALICE: Explain better here what this part is doing
 ```{r}
 ## 1) prep cvn-fold cross validation & rmse function
 cvinds_path = paste0(root,"/cvinds.Rdata")
@@ -304,75 +301,163 @@ if(file.exists(cvinds_path)){
 ```
 
 
+##3.1 Linear Regression 
 
+ALICE: ADD SHORT DESCRIPTION 
+
+```{r}
+
+RAQUEL: ADD CODE
+
+
+```
+
+
+
+##3.2 RVM
+
+ALICE: ADD SHORT DESCRIPTION
+
+```{r}
+
+RAQUEL: ADD CODE
+
+
+```
+
+##3.3 Random Forest
+
+ALICE: ADD SHORT DESCRIPTION
+
+```{r}
+
+RAQUEL: ADD CODE
+
+
+```
+
+
+##3.4 Neural Networks
+
+ALICE: ADD SHORT DESCRIPTION
+
+```{r}
+
+RAQUEL: ADD CODE
+
+
+```
+
+
+#RAQUEL STOPPED HERE, CODE BELLOW NOT ORGANIZED
 The code bellow shows the names of all models we will be considering. 
 
 ```{r}
+# overwrite model?
+overwrite = F
+
+# feature
+xi = "features_raw" # ra, a, pca
+
+# model
+model = "enet"
+
+# list model parameters to test; see https://topepo.github.io/caret/available-models.html
+parsi = expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)) # parsi = NULL; if no parameters need to be tested
+
+## 0) load feature ----------------------------------------
+m0 = read.csv(paste0(feat_dir,"/", xi))
+rownames(m0) = m0[,1]
+m0 = as.matrix(m0[,-1])
+
+
+## 1) prep cvn-fold cross validation & rmse function ----------
+cvinds_path = paste0(root,"/cvinds.Rdata")
+if (file.exists(cvinds_path)) {
+  load(cvinds_path)
+} else {
+  cvn = 10
+  tr_ind0 = which(meta$Train==1)
+  te_ind = sample(tr_ind0, ceiling(length(tr_ind0)/11))
+  tr_ind = sample(tr_ind0[!tr_ind0%in%te_ind])
+  ctr = as.numeric(meta$GA[tr_ind])
+  cte = as.numeric(meta$GA[te_ind])
+  save(cvn,tr_ind0,te_ind,tr_ind,ctr,cte, file=cvinds_path)
+}
 fitcv = trainControl(method="cv", number=cvn)
 
 
+```
+
+
+
+```{r}
 ## 2) test regression models ---------------------------------
 
-# list models to test
-models = c(
-  "enet", # 8.5      
-  "foba", # 8.5      
-  "gaussprPoly", # 8.3
-  "gaussprRadial", # 8.8
-  "glmnet", # 8.5
-  "icr", # 8.4
-  "kernelpls", # 8.5
-  "krlsRadial", # 8.5
-  "lars2", # 8.5      
-  "lasso", # 8.7     
-  "leapBackward", "leapForward", "leapSeq", # 8.5
-  "nnls", # 8.5
-  "null", # 8.5
-  "partDSA", # 8.5
-  "pls",        
-  "plsRglm",    
-  "rbf", # 8.4       
-  "rpart", # 8.4     
-  "rqlasso", # 8.4
-  "rvmPoly",    "rvmRadial", # 8.5
-  "simpls", "spikeslab",  # "spls", # 8.5; spls takes a bit longer 950
-  "svmPoly",    "svmRadial",  "svmRadialCost","svmRadialSigma", # 8.5
-  "widekernelpls", # 8.5
-  "rqnc", # 8.4
-  "nodeHarvest", # 8.6
-  "mlpML", # 8.5
-  "xgbDART" # extreme gradient boosting is good; "xgbLinear", # takes too long
-)
-
-# list model parameters to test
-pars = list(
-  enet=expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)),
-  mlpML=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100))
-)
-
-overwrite = FALSE
-# use lapply/loop to run everything; best RMSE chosen by default
-for (model in models) {
-  cat("\n", model, " ------------------------------------------");
-  for (xi in names(features)) {
-    current_features = features[[xi]]
-    train = current_features[tr_ind,]
-    #mtr = train
-    dir.create(paste0(model_dir,"/",xi), showWarnings=F)
-    fname = paste0(model_dir,"/",xi,"/",model,".Rdata")
-    if (!file.exists(fname) | overwrite) { try ({ cat("\n", xi)
-      t2i = NULL
-      if (model%in%names(pars)) {
-        t2i = caret::train(y=ctr, x=train, model, trControl=fitcv, tuneGrid=pars[[model]])
-      } else {
-        t2i = caret::train(y=ctr, x=train, model, trControl=fitcv)#, tuneGrid=pars[[model]])
-      }
-      if (!is.null(t2i)) save(t2i, file=fname)
-    }) }
+# best RMSE parameters chosen by default
+mtr = m0[tr_ind,]
+dir.create(paste0(model_dir,"/",xi), showWarnings=F)
+fname = paste0(model_dir,"/",xi,"/",model,".Rdata")
+if (!file.exists(fname) | overwrite) { try ({
+  t2i = NULL
+  if (!is.null(parsi)) {
+    t2i = caret::train(y=ctr, x=mtr, model, trControl=fitcv, tuneGrid=parsi)
+  } else {
+    t2i = caret::train(y=ctr, x=mtr, model, trControl=fitcv)
   }
-}
+  if (!is.null(t2i)) save(t2i, file=fname)
+}) }
+load(fname)
+
+# results to data frame
+df = data.frame(
+  rmse=t2i$results$RMSE[which.min(t2i$results$RMSE)],
+  time=as.numeric(t2i$times$everything[3]),
+  model_=t2i$modelInfo$label, 
+  feature=xi, model=model, 
+  par=paste0( paste0(names(t2i$bestTune), collapse="_"), ": ", paste0(t2i$bestTune, collapse="_") )
+  , stringsAsFactors=F)
+df
+
+```
 
 
+
+```{r}
+## 4) get test prediction results from models ----------------------
+pred = extractPrediction(t2i, testX=m0[te_ind,], testY=cte, unkX=m0[-tr_ind0,])
+
+# plot graph to compare models
+wth = 200
+dir.create(paste0(result_dir,"/obsVSpred"), showWarnings=F)
+png(paste0(result_dir,"/obsVSpred/",xi,"_",model,".png"), width=wth)
+pl = plotObsVsPred(pred)
+print(pl)
+graphics.off()
+
+
+## 5) get rmse results and plot ------------------------------------
+# preds = unlist(preds0,recursive=F)
+rmse = function(x,y) sqrt(mean((x-y)^2))
+rdf = ldply(unique(pred$model), function(mi) {
+  mii = pred$model==mi
+  pr = pred$pred[mii]
+  data.frame(rmse=c(rmse(pr[1:length(tr_ind)], ctr),
+                    rmse(pr[(length(tr_ind)+1):(length(tr_ind)+length(te_ind))], cte),
+                    rmse(pr[1:length(tr_ind0)], meta$GA[append(tr_ind,te_ind)])),
+             feature=rep(xi,3), model=rep(mi,3), type=c("train","test","all"))
+})
+rdf
+
+
+
+## 7) save final results of one model/feature ------------------
+
+# submission template
+class_final = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv")) 
+
+class_final$GA = round(pred$pred[is.na(pred$obs) & pred$model==model],1)
+write.csv(class_final, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
 ```
 
 
@@ -567,3 +652,41 @@ write.csv(submission, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
 
 ```
 
+
+
+All models available: 
+* enet: Fits Elastic Net Regression Models
+* foba: Greedy variable selection for ridge regression (?)
+* gaussprPolyg: Gaussian Process with Polynomial Kernel
+* gaussprRadial: Gaussian Process with Radial Basis Function Kernel
+* glmnet: Elastic net model paths for some generalized linear models
+* icr: linear regression model using independent components
+* kernelpls: Fits a PLSR(Partial Least Squares Regression) model with the kernel algorithm.
+* krlsRadial:
+* lars2      
+* lasso: regression least absolute shrinkage and selection operator
+* leapBackward: regression  
+* leapForward: regression 
+* leapSeq: regression 
+* nnls: regression, non-negative least squares
+* null
+* partDSA: Partitioning Using Deletion, Substitution, and Addition Moves
+* pls: Partial Least Squares Regression      
+* plsRglm: Partial Least Squares Regression    
+* rbf: Radial Basis Function 
+* rpart: Recursive Partitioning And Regression Trees
+* rqlasso: Ridge Regression and the Lasso
+* rvmPoly: Least squares support vector machines poly kernel
+* rvmRadial: regression vector machine radial kernel
+* simpls: PLSR model with the SIMPLS algorithm
+* spikeslab:Prediction and variable selection using spike and slab regression
+* spls: Sparse Partial Least Squares 
+* svmPoly: Support Vector Machines with Polynomial Kernel 
+* svmRadial: Support Vector Machines with Radial 
+* svmRadialCost: Support Vector Machines with Radial
+* svmRadialSigma: Support Vector Machines with kernel
+* widekernelpls: no info
+* rqnc: no info 
+* nodeHarvest: tree-like estimator
+* mlpML: Multilayer Perceptron
+* xgbDART
