@@ -55,7 +55,7 @@ pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
          "elasticnet", "fastICA", "foba", "glmnet","kernlab", 
          "KRLS", "lars", "leaps", "nnls", "nodeHarvest", 
          "partDSA", "pls", "plsRglm", "rpart", "rqPen",
-         "RSNNS", "spikeslab", "xgboost") # ml
+         "RSNNS", "spikeslab", "xgboost",'Metrics') # ml
 pkgs_ui = setdiff(pkgs, rownames(installed.packages()))
 if (length(pkgs_ui) > 0) install.packages(pkgs_ui, verbose=F)
 sapply(pkgs, require, character.only=T)
@@ -268,20 +268,6 @@ In this chunk, we will load the features that we pre-processed.
 The advange is that if something happen with the code and we need to restart, we don't need to wait for
 the code to run the features again, we can just load the results here. 
 
-```{r}
-## 0) load features
-
-feat_paths = list.files(feat_dir) # feature paths
-features = llply(feat_paths, 
-            function(xi) {
-              feat = read.csv(paste0(feat_dir,"/", xi))
-              rownames(feat) = feat[,1]
-              feat = as.matrix(feat[,-1])
-              }
-            )
-names(features) = gsub(".csv","",feat_paths)
-
-```
 
 ALICE: Explain better here what this part is doing
 ```{r}
@@ -291,12 +277,12 @@ if(file.exists(cvinds_path)){
   load(cvinds_path)
 } else {
   cvn = 10
-  tr_ind0 = which(meta$Train==1) #selecting only the training examples
-  te_ind = sample(tr_ind0, ceiling(length(tr_ind0)/11)) #cross validation set
-  tr_ind = sample(tr_ind0[!tr_ind0%in%te_ind]) #removing cross validation set from training set 
-  ctr = as.numeric(meta$GA[tr_ind]) 
-  cte = as.numeric(meta$GA[te_ind])
-  save(cvn,tr_ind0,te_ind,tr_ind,ctr,cte, file=cvinds_path)
+  train_index = which(meta$Train==1) #selecting only the training examples
+  train_index_val = sample(train_index, ceiling(length(train_index)/11)) #cross validation set
+  train_index_ = sample(train_index[!train_index%in%train_index_val]) #removing cross validation set from training set 
+  ga_val = as.numeric(meta$GA[train_index_val])
+  ga_ = as.numeric(meta$GA[train_index_]) 
+  save(cvn,train_index,train_index_val,train_index_,ga_val,ga_, file=cvinds_path)
 }
 ```
 
@@ -305,10 +291,37 @@ if(file.exists(cvinds_path)){
 
 ALICE: ADD SHORT DESCRIPTION 
 
+```{r, warning=FALSE}
+feature_type = 'pca' #options are 'pca', 'raw', 'ra' for random forest and 'a' for autoencoder
+## 0) load feature 
+features = read.csv(paste(feat_dir,"/features_",feature_type,'.csv', sep = ''))
+rownames(features) = features[,1]
+features = as.matrix(features[,-1])
+
+features_ = features[train_index_,]
+features_val = features[train_index_val,]
+
+train_ = data.frame(ga_,features_)
+model1 = lm(ga_ ~ .,data = train_)
+predictions_m1 = predict(model1, newdata = train_[,-1])
+
+require(Metrics)
+rmse(ga_, predictions_m1)
+
+```
 ```{r}
+plotdata = data.frame(ga_,predictions_m1)
+ggplot(plotdata, aes(x = ga_,y = predictions_m1))+geom_point(color = 'lightgreen')
+```
 
-RAQUEL: ADD CODE
-
+### Exercise: Calculate the predictions for features_val and ga_val. With the predicted values, make a plot predictions_m1_val and ga_val
+```{r, warning=FALSE}
+predictions_m1_val = predict()
+rmse()
+```
+```{r}
+plotdata = data.frame()
+ggplot(plotdata, aes(x = ,y = ))+geom_point(color = '')
 
 ```
 
@@ -320,8 +333,7 @@ ALICE: ADD SHORT DESCRIPTION
 
 ```{r}
 
-RAQUEL: ADD CODE
-
+model2 = rvm(x = features_, ga_, type="regression")
 
 ```
 
@@ -336,17 +348,6 @@ RAQUEL: ADD CODE
 
 ```
 
-
-##3.4 Neural Networks
-
-ALICE: ADD SHORT DESCRIPTION
-
-```{r}
-
-RAQUEL: ADD CODE
-
-
-```
 
 
 ALICE: Explain RMSE
@@ -368,25 +369,8 @@ model = "enet"
 # list model parameters to test; see https://topepo.github.io/caret/available-models.html
 parsi = expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)) # parsi = NULL; if no parameters need to be tested
 
-## 0) load feature ----------------------------------------
-m0 = read.csv(paste0(feat_dir,"/", xi))
-rownames(m0) = m0[,1]
-m0 = as.matrix(m0[,-1])
 
 
-## 1) prep cvn-fold cross validation & rmse function ----------
-cvinds_path = paste0(root,"/cvinds.Rdata")
-if (file.exists(cvinds_path)) {
-  load(cvinds_path)
-} else {
-  cvn = 10
-  tr_ind0 = which(meta$Train==1)
-  te_ind = sample(tr_ind0, ceiling(length(tr_ind0)/11))
-  tr_ind = sample(tr_ind0[!tr_ind0%in%te_ind])
-  ctr = as.numeric(meta$GA[tr_ind])
-  cte = as.numeric(meta$GA[te_ind])
-  save(cvn,tr_ind0,te_ind,tr_ind,ctr,cte, file=cvinds_path)
-}
 fitcv = trainControl(method="cv", number=cvn)
 
 
@@ -550,6 +534,20 @@ top20 = top20[order(top20$Frequency,decreasing = T),]
 top20 
 ```
 
+```{r}
+## 0) load features
+
+feat_paths = list.files(feat_dir) # feature paths
+features = llply(feat_paths, 
+            function(xi) {
+              feat = read.csv(paste0(feat_dir,"/", xi))
+              rownames(feat) = feat[,1]
+              feat = as.matrix(feat[,-1])
+              }
+            )
+names(features) = gsub(".csv","",feat_paths)
+
+```
 
 
 ```{r}
