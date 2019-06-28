@@ -166,7 +166,7 @@ p4 <- ggplot(data_cor, aes(x=corr_p, y = corr_s)) +
 grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
 
-# Exercise: 
+# Exercise 1: 
 1. What can we conclude from these plots above? 
 2. Why we don't have the correlation between the gene expression and GA for the testing set? 
 3. Can you think in any other intesresting plots or analysis? 
@@ -218,8 +218,6 @@ PrePCA = preProcess(data2,method="pca")
 feat.pca = predict(PrePCA,data2)
 write.csv(feat.pca, paste0(feat_dir,'/features_pca.csv'), row.names=T)
 
-
-
 ```
 
 ```{r}
@@ -249,6 +247,17 @@ if(!exists('preA')){
 }
 rownames(feat.A) = rownames(feat.ra)
 write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
+```
+
+### Exercise 2: 
+1. What parameters do you think you could change? 
+2. Choose between PCA and Random Forest. Try to save a new features set with a different number of features. 
+
+```{r}
+#feat.unique = predict(PrePCA,data2) #for pca
+#feat.unique = data2[] #for random forest
+#write.csv(feat.unique, )
+
 ```
 
 
@@ -284,6 +293,9 @@ if(file.exists(cvinds_path)){
   ga_ = as.numeric(meta$GA[train_index_]) 
   save(cvn,train_index,train_index_val,train_index_,ga_val,ga_, file=cvinds_path)
 }
+
+require(Metrics)
+
 ```
 
 
@@ -305,23 +317,27 @@ train_ = data.frame(ga_,features_)
 model1 = lm(ga_ ~ .,data = train_)
 predictions_m1 = predict(model1, newdata = train_[,-1])
 
-require(Metrics)
 rmse(ga_, predictions_m1)
 
 ```
 ```{r}
 plotdata = data.frame(ga_,predictions_m1)
-ggplot(plotdata, aes(x = ga_,y = predictions_m1))+geom_point(color = 'lightgreen')
+ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
+  geom_point(color = 'lightgreen')+
+  xlab('Linear Regression Model - Training Set')+
+  ylab('Predicted Values')
+
 ```
 
-### Exercise: Calculate the predictions for features_val and ga_val. With the predicted values, make a plot predictions_m1_val and ga_val
+### Exercise 3: 
+Calculate the predictions for features_val and ga_val using linear regression. With the predicted values, make a plot predictions_m1_val and ga_val
 ```{r, warning=FALSE}
 predictions_m1_val = predict()
 rmse()
 ```
 ```{r}
 plotdata = data.frame()
-ggplot(plotdata, aes(x = ,y = ))+geom_point(color = '')
+ggplot(plotdata, aes(x = ,y = ))+geom_point(color = '')+xlab('')+ylab('')
 
 ```
 
@@ -334,19 +350,65 @@ ALICE: ADD SHORT DESCRIPTION
 ```{r}
 
 model2 = rvm(x = features_, ga_, type="regression")
+predictions_m2 = predict(model2,data = as.data.frame(features_))
+rmse(ga_,predictions_m2)
+
+
+plotdata = data.frame(ga_,predictions_m2)
+ggplot(plotdata, aes(x = ga_,y = predictions_m2))+
+  geom_point(color = 'lightgreen')+
+  ylab('Predicted Values')+
+  xlab('RVM - Training Set')
 
 ```
+### Exercise 4: 
+Calculate the predictions for features_val and ga_val using rvm. With the predicted values, make a plot predictions_m1_val and ga_val
+```{r, warning=FALSE}
+predictions_m2_val = predict()
+rmse()
+```
+
+
+```{r}
+plotdata = data.frame()
+ggplot(plotdata, aes(x = ,y = ))+geom_point(color = '')+xlab('')+ylab('')
+
+```
+
 
 ##3.3 Random Forest
 
 ALICE: ADD SHORT DESCRIPTION
 
 ```{r}
+model3 = ranger(ga_~.,data = train_)
+predictions_m3 = predict(model3, data = as.data.frame(features_)) 
+rmse(ga_,predictions_m3$predictions)
 
-RAQUEL: ADD CODE
-
+plotdata = data.frame(ga_,predictions_m3$predictions)
+ggplot(plotdata, aes(x = ga_,y = predictions_m3.predictions))+
+  geom_point(color = 'lightgreen')+
+  ylab('Predicted Values')+
+  xlab('Random Forest - Training Set')
 
 ```
+### Exercise 5: 
+Calculate the predictions for features_val and ga_val using Random Forest. With the predicted values, make a plot predictions_m1_val and ga_val
+```{r, warning=FALSE}
+predictions_m3_val = predict()
+rmse()
+```
+
+
+```{r}
+plotdata = 
+ggplot(plotdata, aes(x = ,y = ))+geom_point(color = '')+xlab('')+ylab('')
+
+```
+
+
+### Exercise 6:
+
 
 
 
