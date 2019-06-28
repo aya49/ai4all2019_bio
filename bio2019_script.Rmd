@@ -263,8 +263,19 @@ write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
 
 In this section we will work which the Machine Learning Models. We have 5 different sets of features (RAW, PCA, RA, A, UNIQUE) and we will first work with 3 models: Linear Regression, RVM and Random Forest. The best model will be selected based on the difference between the values we observed on the training set for GA (Gestacional Age) and the predicted values for the combination of MODEL+FEATURE. The lowest is this difference on the validation set, the better. 
 
+Before we begin to test the models, we need to set up an experimental framework to so that we can evaluate our results once they come out. One such technique is a resampling procedure called ```cvn```-fold cross validation (here we set ```cvn``` to 10).
 
-ALICE: Explain better here what this part is doing
+Typically, data sets are split up into a train and test set; we extract these indices into the ```tr_ind``` and ```te_ind``` variables respectively. The former set of examples is used to train our model, which is later tested on the test set, a set of samples our model has not seen before. However, since we assume we do not have the GA for our test set, we would not know how our model performs on the test set.
+
+Therefore, we further split the train set into ```cvn```=10 equal sized chunks. Since we know the Ga to all our train samples, we can evaluate the model a total of 10 times, each time training the model 9 of the chunks and testing the model on 1 of the chunks. Thereafter, these metrics can be combined (e.g. via a mean) to produce an appropriate evaluation of the model.
+
+# Exercise 3:
+1. Why do we want to perform cross validation? Why would we cross validating the model ```cvn``` times over just 1 time?
+
+Answer (delete): 
+1. Evaluation becomes more robust with resampling
+
+
 ```{r}
 ## 1) prep cvn-fold cross validation & rmse function
 cvinds_path = paste0(root,"/cvinds.Rdata")
@@ -284,10 +295,13 @@ require(Metrics)
 
 ```
 
+The RMSE (root mean squared error) is a metric that indicates how different our models' predicted GA are compared to the true GA. In other words, the smaller the RMSE, the better.This will be the metric used to compare the models we will be working on. 
 
 ##3.1 Linear Regression 
 
-ALICE: ADD SHORT DESCRIPTION 
+Remember $y=ax+b$? That's linear regression in a nutshell. Linear regression assumes that there is a linear relationship between the given multidimensional RNAseq train data $x$ and the corresponding variable we want to predict GA $y$. $a$ represents the slope and $b$ represents the y-intercept. In the real world though, there often isn't a perfect linear relationship, so below, we try to estimate the best line (i.e. $a$ and $b$ parameters) given $x$ and $y$.
+
+Linear regression is fast and intuitive, but there are many data sets that do not conform with this linear assumption.
 
 ```{r, warning=FALSE}
 feature_type = 'pca' #options are 'pca', 'raw', 'ra' for random forest and 'a' for autoencoder
@@ -318,7 +332,7 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
 
 ```
 
-### Exercise 3: 
+### Exercise 4: 
 Calculate the predictions for features_val and ga_val using linear regression. With the predicted values, make a plot predictions_m1_val and ga_val
 ```{r, warning=FALSE}
 #predictions_m1_val = predict()
@@ -334,7 +348,16 @@ Calculate the predictions for features_val and ga_val using linear regression. W
 
 ##3.2 RVM
 
-ALICE: ADD SHORT DESCRIPTION
+
+RVM (relevance vector machines) is an application of the Bayesian treatment of general linear models to SVMs (support vector machines). 
+
+SVMs is a model that draws support vectors (i.e. a line) to separate data in an effort to predict their corresponding discrete classes (e.g. early GA, late GA) as opposed to predicting continuous values (e.g. 10 week GA, 32 week GA). SVMs extract this line from the train data by first calculating a distance between all the data points. These distances are used to define a best line, one that not only separates the data of different classes, but are also the largest distance from data points of both classes (i.e. the line sites in the middle of the space between the two classes, rather than being closer to one or the other).
+
+RVM is functionally identicle to SVM. The Bayesian treatment is a fancy way of saying that instead of categorizing all data points on one side of the line as a single class, let's give them continuous class values that indicates how far the data points are from the line.
+
+In both cases, the user defined formua that calculates distances between data points are called "kernels".
+
+RVMs are fast to train and easy to use, but it can become less effective if the data set used has too many features because it depends on possibly dimension sensative kernel functions.
 
 ```{r}
 
@@ -350,7 +373,7 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m2))+
   xlab('RVM - Training Set')
 
 ```
-### Exercise 4: 
+### Exercise 5: 
 Calculate the predictions for features_val and ga_val using rvm. With the predicted values, make a plot predictions_m1_val and ga_val
 ```{r, warning=FALSE}
 #predictions_m2_val = predict()
@@ -367,7 +390,9 @@ Calculate the predictions for features_val and ga_val using rvm. With the predic
 
 ##3.3 Random Forest
 
-ALICE: ADD SHORT DESCRIPTION
+A random forest is an aggregate of decision trees formed via model training. A decision tree is a decision making template in the form of "if this then that"; in our case, this decision would be "if this gene is expressed often, then the woman is in her 32nd week of gestation". 
+
+Decision trees and the rules they contain are interpretable and easy to understand. As well combining many decision trees together yield more robust results. However, it can be slow if there are too many features and it is more suited for predicting categorical results.
 
 ```{r}
 model3 = ranger(ga_~.,data = train_)
@@ -381,7 +406,7 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m3.predictions))+
   xlab('Random Forest - Training Set')
 
 ```
-### Exercise 5: 
+### Exercise 6: 
 Calculate the predictions for features_val and ga_val using Random Forest. With the predicted values, make a plot predictions_m1_val and ga_val
 ```{r, warning=FALSE}
 #predictions_m3_val = predict()
@@ -396,7 +421,7 @@ Calculate the predictions for features_val and ga_val using Random Forest. With 
 ```
 
 
-### Exercise 6:
+### Exercise 7:
 Repite the Linear Regression, SCM and Random Forest with 2 other sets of features: 'raw', 'ra' for random forest or 'a' for autoencoder and the 'unique' set of features you made on  Exercise 2. From the set of features you choose, which one have the best result? Why?
 
 SET OF FEATURES 1
@@ -476,10 +501,10 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
 
 ```
 
-###Exercise 7: 
+###Exercise 8: 
 Create a plot to identify which model or set of features is the best between so far. 
 
-```{r}
+```{r, warning=FALSE}
 #Saving the results of the predictions when the .unique features were used 
 output_unique = data.frame(
   model = c('LR','RVM','RF'),
@@ -500,26 +525,25 @@ output = rbind(output,output_unique)
 
 
 
-#RAQUEL STOPPED HERE, CODE BELLOW NOT ORGANIZED
-The code bellow shows the names of all models we will be considering. 
+## Extra Models
+Basides the models shown in the prevous section, there are many other models or variations of that models we could use to explore this problem. However, some of them are more time consuming, thus we trained some extra models and we saved their results, so now all we need is make the predictions and check their RMSE. 
+
+
 
 ```{r}
 # overwrite model?
 overwrite = F
 
-# feature
-xi = "features_raw" # ra, a, pca
+# features
+features = "features_raw" # ra, a, pca
 
-# model
+# model options:
+#enet, foba, gaussprPolyg, gaussprRadial,glmnet, icr, kernelpls, krlsRadial, lars2, lasso, leapBackward, leapForward, leapSeq, nnls, partDSA, pls , plsRglm, rbf, rpart, rqlasso, rvmPoly, rvmRadial, simpls, spikeslab, spls, svmPoly, svmRadial, svmRadialCost, svmRadialSigma, widekernelpls, rqnc, nodeHarvest, mlpML, xgbDART
+#see https://topepo.github.io/caret/available-models.html for more information about each model
+
 model = "enet"
-
-# list model parameters to test; see https://topepo.github.io/caret/available-models.html
 parsi = expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)) # parsi = NULL; if no parameters need to be tested
-
-
-
 fitcv = trainControl(method="cv", number=cvn)
-
 
 ```
 
@@ -681,6 +705,11 @@ top20 = top20[order(top20$Frequency,decreasing = T),]
 top20 
 ```
 
+
+In this chunk, we will load the features that we pre-processed. 
+The advange is that if something happen with the code and we need to restart, we don't need to wait for
+the code to run the features again, we can just load the results here. 
+
 ```{r}
 ## 0) load features
 
@@ -803,38 +832,3 @@ write.csv(submission, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
 
 
 All models available: 
-* enet: Fits Elastic Net Regression Models
-* foba: Greedy variable selection for ridge regression (?)
-* gaussprPolyg: Gaussian Process with Polynomial Kernel
-* gaussprRadial: Gaussian Process with Radial Basis Function Kernel
-* glmnet: Elastic net model paths for some generalized linear models
-* icr: linear regression model using independent components
-* kernelpls: Fits a PLSR(Partial Least Squares Regression) model with the kernel algorithm.
-* krlsRadial:
-* lars2      
-* lasso: regression least absolute shrinkage and selection operator
-* leapBackward: regression  
-* leapForward: regression 
-* leapSeq: regression 
-* nnls: regression, non-negative least squares
-* null
-* partDSA: Partitioning Using Deletion, Substitution, and Addition Moves
-* pls: Partial Least Squares Regression      
-* plsRglm: Partial Least Squares Regression    
-* rbf: Radial Basis Function 
-* rpart: Recursive Partitioning And Regression Trees
-* rqlasso: Ridge Regression and the Lasso
-* rvmPoly: Least squares support vector machines poly kernel
-* rvmRadial: regression vector machine radial kernel
-* simpls: PLSR model with the SIMPLS algorithm
-* spikeslab:Prediction and variable selection using spike and slab regression
-* spls: Sparse Partial Least Squares 
-* svmPoly: Support Vector Machines with Polynomial Kernel 
-* svmRadial: Support Vector Machines with Radial 
-* svmRadialCost: Support Vector Machines with Radial
-* svmRadialSigma: Support Vector Machines with kernel
-* widekernelpls: no info
-* rqnc: no info 
-* nodeHarvest: tree-like estimator
-* mlpML: Multilayer Perceptron
-* xgbDART
