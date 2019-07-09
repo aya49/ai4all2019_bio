@@ -246,11 +246,11 @@ fitcv = trainControl(method="cv", number=cvn)
 #     return(list(pte=pte, rmse=rmse(pte,ga_val_)))
 #   })
 # }
-# # usage:
-# result_10x_rsme_pred = cv(data0, cv_inds, cv_class, function(mtr, ga_tr, mte) {
-#   ...
-#   return(pred) # vector of test class prediction
-# })
+# # # usage:
+# # result_10x_rsme_pred = cv(data0, cv_inds, cv_class, function(mtr, ga_tr, mte) {
+# #   ...
+# #   return(pred) # vector of test class prediction
+# # })
 
 
 ## 2) test regression models ---------------------------------

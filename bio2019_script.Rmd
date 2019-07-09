@@ -117,13 +117,12 @@ data1 = merge(meta[,c(1,2,5)],data1,by.x = 'SampleID',by.y = 'SampleID', all = T
 data1 = subset(data1, Train == 1) 
 data1 = subset(data1, select = -c(Train,SampleID))
 
-#train set 
+# train set 
 data_expl = data.frame(col = names(data1),corr_p = apply(data1, 2, cor, x = data1$GA, method = 'pearson'))
 data_expl = data.frame(data_expl, corr_s = apply(data1, 2, cor, x = data1$GA, method = 'spearman'))
 rownames(data_expl) = NULL 
 
-
-#Dataset with all information 
+# dataset with all information 
 data_expl = data.frame(data_expl, variance = c(var(data1$GA),colVars(data0)), mean = c(mean(data1$GA),colMeans(data0))) 
 data_expl = data_expl[-1,] # removing GA from the dataset
 ```
@@ -186,7 +185,7 @@ keep = subset(data_expl, variance>quantile(data_expl$variance, 0.3) & corr_p>qua
 
 data2 = subset(data0, select=keep$col)
 
-## Saving for future use
+## save for future use
 write.csv(data2, paste0(feat_dir,'/feature_trraw.csv'), row.names=T)
 
 ```
@@ -196,12 +195,11 @@ write.csv(data2, paste0(feat_dir,'/feature_trraw.csv'), row.names=T)
 PrePCA = preProcess(data2,method="pca")
 feat.pca = predict(PrePCA,data2)
 write.csv(feat.pca, paste0(feat_dir,'/feature_trpca.csv'), row.names=T)
-
 ```
 
 ```{r}
 ## 4) Random Forest 
-data1 = subset(data1, select =keep$col)
+data1 = subset(data1, select=keep$col)
 data1 = data.frame(GA1, data1)
 if(!exists('PreRF')){
   PreRF = caret::train(y=GA1, x=data1[,-1],  method='ranger',importance='impurity')
@@ -209,12 +207,9 @@ if(!exists('PreRF')){
 }else{
   PreRF.i = varImp(PreRF)$importance
 }
-
 feat.ra = data2[,order(PreRF.i, decreasing=T)[1:500]]
-write.csv(feat.ra, paste0(feat_dir,'/feature_trra.csv'), row.names = T)
-
+write.csv(feat.ra, paste0(feat_dir,'/feature_trra.csv'), row.names=T)
 ```
-
 
 ```{r}
 ## 5) Autoencoder 
@@ -223,7 +218,7 @@ if(!exists('preA')){
   feat.A = encode(preA, data2)  
 }
 rownames(feat.A) = rownames(feat.ra)
-write.csv(feat.A, paste0(feat_dir,'/feature_tra.csv'), row.names = T)
+write.csv(feat.A, paste0(feat_dir,'/feature_tra.csv'), row.names=T)
 ```
 
 ### Exercise 2: 
@@ -233,8 +228,7 @@ write.csv(feat.A, paste0(feat_dir,'/feature_tra.csv'), row.names = T)
 ```{r}
 #feat.unique = predict(PrePCA,data2) #for pca OR
 #feat.unique = data2[] #for random forest
-#write.csv(feat.unique, )
-
+#write.csv(feat.unique, paste0(feat_dir,'/feature_tra.csv'), row.names=T)
 ```
 
 
