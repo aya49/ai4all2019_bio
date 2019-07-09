@@ -83,10 +83,10 @@ data1 = data.frame(GA=meta$GA[meta_data_match], data0)
 data1 = data1[meta$Train[meta_data_match]==1,]
 
 data_expl = data.frame(col=colnames(data1), 
-  corr_p=apply(data1,2,cor, x=data1$GA, method='pearson'),
-  corr_s=apply(data1,2,cor, x=data1$GA, method='spearman'),
-  variance=c(var(data1$GA),colVars(data0)),
-  mean=c(mean(data1$GA),colMeans(data0))
+                       corr_p=apply(data1,2,cor, x=data1$GA, method='pearson'),
+                       corr_s=apply(data1,2,cor, x=data1$GA, method='spearman'),
+                       variance=c(var(data1$GA),colVars(data0)),
+                       mean=c(mean(data1$GA),colMeans(data0))
 )
 data_expl = data_expl[-1,] # removing GA from the dataset
 
@@ -101,7 +101,7 @@ p2 <- ggplot(data_expl, aes(x=mean, y=variance)) +
   ylab('Variance')+ labs(title='(b)')
 
 p3 <- ggplot(data_expl, aes(x=corr_p)) + 
-  geom_histogram(fill='lightgreen')+
+  geom_histogram(fill='lightgreen'GA)+
   xlab('Pearson Correlation between Genes and Gestacional Age')+ labs(title='(c)')
 
 p4 <- ggplot(data_expl, aes(x=corr_p, y=corr_s)) + 
@@ -452,7 +452,7 @@ write.table(df1, file=paste0(result_dir,"/rmse_train.csv"))
 preds0 = llply(names(result0), function(xi) {
   feature = features[[xi]]
   res = extractPrediction(result0[[xi]], 
-    testX=feature[train_index_val,], testY=ga_val, unkX=feature[-train_index,]) # some features don't have test data
+                          testX=feature[train_index_val,], testY=ga_val, unkX=feature[-train_index,]) # some features don't have test data
   return(res)
 }, .parallel=T)
 names(preds0) = names(result0)
