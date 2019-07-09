@@ -1,5 +1,5 @@
 ## input:
-##   - features: (samples x 32830/925032 gene/probeset) RNAseq counts (+extracted features); data has been batch and count normalized
+##   - features: (samples x 32830/925032 gene/probeset) RNAseq counts (+extraga_vald features); data has been batch and count normalized
 ##   - class: (367 train sample) gestational age 8-42 weeks
 ## output:
 ##   - class: (368 test sample) gestational age 8-42 weeks rounded to 1 decimal place
@@ -34,7 +34,7 @@ sapply(c(input_dir,feat_dir, model_dir, result_dir),
 pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
          "lattice", "ggplot2", # barplot, plots
          "foreach", "doMC", # parallel back-end
-         "caret", "caretEnsemble",
+         "caret", "caretEnsemble", "Metrics",
          "deepnet", "e1071", "ranger", "ANN2", "randomForest",
          "elasticnet", "fastICA", "foba", "glmnet","kernlab", 
          "KRLS", "lars", "leaps", "nnls", "nodeHarvest", 
@@ -42,7 +42,7 @@ pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
          "RSNNS", "spikeslab") # ml
 pkgs_ui = setdiff(pkgs, rownames(installed.packages()))
 if (length(pkgs_ui) > 0) install.packages(pkgs_ui, verbose=F)
-sapply(pkgs, require, character.only=T)
+sapply(pkgs, require, charaga_valr.only=T)
 
 
 ## script options
@@ -68,40 +68,76 @@ data0 = t(get(load(paste0(input_dir,"/HTA20_RMA.RData"))))
 submission = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv")) 
 
 
-## data exploration ----------------------------
-range(data0) # range: 0.9365626 14.2836285
-gid = colnames(data0); head(gid) # genes IDS
-pid = rownames(data0); head(pid) # Patient IDS  
 
-# plot stats: mean count, pearson/spearman corr
-datavars = colVars(data0)
-meancount = colMeans(data0)
-meancounto = order(meancount)
+## data exploration (ggplot in .rmd) ----------------------------
+cat('Range\n');range(data0);
+cat('Genes IDs\n'); gid = colnames(data0); head(gid);
+cat('Patients IDs\n'); pid = rownames(data0); head(pid)
+cat('Meta Data head and shape\n'); head(meta); dim(meta)
+cat('RNASEQ head and shape\n'); head(data0[,c(1:5)]); dim(data0)
+cat('Submission head and shape\n'); head(submission); dim(submission)
 
-tr_ind0 = which(meta$Train==1)
-corpe = apply(data0[tr_ind0,meancounto], 2, function(x) 
-  cor(x, meta$GA[tr_ind0], method="pearson"))
-corpep = apply(data0[tr_ind0,meancounto], 2, function(x) 
-  cor.test(x, meta$GA[tr_ind0], method="pearson")$p.value)
+## plot stats: mean count, var, pearson/spearman corr (use only the train dataset to calculate)
+meta_data_match = match(meta$SampleID, rownames(data0))
+data1 = data.frame(GA=meta$GA[meta_data_match], data0)
+data1 = data1[meta$Train[meta_data_match]==1,]
 
-corsp = apply(data0[tr_ind0,meancounto], 2, function(x) 
-  cor(x, meta$GA[tr_ind0], method="spearman"))
-corspp = apply(data0[tr_ind0,meancounto], 2, function(x) 
-  cor.test(x, meta$GA[tr_ind0], method="spearman")$p.value)
+data_expl = data.frame(col=colnames(data1), 
+  corr_p=apply(data1,2,cor, x=data1$GA, method='pearson'),
+  corr_s=apply(data1,2,cor, x=data1$GA, method='spearman'),
+  variance=c(var(data1$GA),colVars(data0)),
+  mean=c(mean(data1$GA),colMeans(data0))
+)
+data_expl = data_expl[-1,] # removing GA from the dataset
 
-# plot stats
-png(paste0(result_dir,"/gene_stats.png"), width=800, height=1000)
-par(mfcol=c(4,1), mar=c(3,3,3,3))
-plot(density(data0), main="count distribution")
-plot(log(meancount), datavars, pch=16, cex=.3, 
-     main="gene ln(mean count) x variance")
-plot(corpe, cex=1-corpep, pch=16, 
-     main="gene (asc mean count order) x pearson corr with GA (size=1-pvalue)")
-# plot(abs(corpe), cex=1-corpep, pch=16)
-plot(corsp, cex=1-corspp, pch=16, 
-     main="gene (asc mean count order) x spearman corr with GA (size=1-pvalue)")
-# plot(abs(corsp), cex=1-corspp, pch=16)
-graphics.off()
+# plot
+p1 <- ggplot(data_expl, aes(x=mean)) + 
+  geom_histogram(fill='lightgreen') + 
+  xlab('Average Expression') + labs(title='(a)')
+
+p2 <- ggplot(data_expl, aes(x=mean, y=variance)) + 
+  geom_point(color='lightgreen')+
+  xlab('Average Expression') + 
+  ylab('Variance')+ labs(title='(b)')
+
+p3 <- ggplot(data_expl, aes(x=corr_p)) + 
+  geom_histogram(fill='lightgreen')+
+  xlab('Pearson Correlation between Genes and Gestacional Age')+ labs(title='(c)')
+
+p4 <- ggplot(data_expl, aes(x=corr_p, y=corr_s)) + 
+  geom_point(color='lightgreen')+ labs(title='(d)')+
+  xlab('Pearson Correlation') + ylab('Spearman Correlation')
+
+grid.arrange(p1, p2, p3, p4, nrow=2)
+
+# # archived version
+# datavars = colVars(data0)
+# meancount = colMeans(data0)
+# meancounto = order(meancount)
+# 
+# train_index = which(meta$Train==1)
+# data1 = data0[train_index,meancounto]
+# ga_tr0 = meta$GA[train_index]
+# 
+# corpe = apply(data1, 2, function(x) cor(x, ga_tr0, method="pearson"))
+# corpep = apply(data1, 2, function(x) cor.test(x, ga_tr0, method="pearson")$p.value)
+# 
+# corsp = apply(data1, 2, function(x) cor(x, ga_tr0, method="spearman"))
+# corspp = apply(data1, 2, function(x) cor.test(x, ga_tr0, method="spearman")$p.value)
+# 
+# # plot stats
+# png(paste0(result_dir,"/gene_stats.png"), width=800, height=1000)
+# par(mfcol=c(4,1), mar=c(3,3,3,3))
+# plot(density(data0), main="count distribution")
+# plot(log(meancount), datavars, pch=16, cex=.3, 
+#      main="gene ln(mean count) x variance")
+# plot(corpe, cex=1-corpep, pch=16, 
+#      main="gene (asc mean count order) x pearson corr with GA (size=1-pvalue)")
+# # plot(abs(corpe), cex=1-corpep, pch=16)
+# plot(corsp, cex=1-corspp, pch=16, 
+#      main="gene (asc mean count order) x spearman corr with GA (size=1-pvalue)")
+# # plot(abs(corsp), cex=1-corspp, pch=16)
+# graphics.off()
 
 
 
@@ -111,48 +147,27 @@ graphics.off()
 
 ## temp data prep -------------------------------------------
 # save only high variance genes and those with high sig pearson corr with GA
-feat = data0[,datavars>quantile(datavars,0.7) & abs(corsp)>quantile(abs(corsp),0.7) & corspp<quantile(corspp,0.1) & meancount>quantile(meancount,0.5)]
+# feat = data0[,datavars>quantile(datavars,0.7) & abs(corsp)>quantile(abs(corsp),0.7) & corspp<quantile(corspp,0.1) & meancount>quantile(meancount,0.5)]
 # # rfe to reduce features random forest
-# rfe_res = rfe(m[tr_ind,], meta$GA[tr_ind], sizes=c(1:8), rfeControl=rfeControl(functions=rfFuncs, method="cv", number=10))
+# rfe_res = rfe(m[train_index_tr,], meta$GA[train_index_tr], sizes=c(1:8), rfeControl=rfeControl(functions=rfFuncs, method="cv", number=10))
 # print(rfe_res)
 # predictors(rfe_res)
 # plot(rfe_res, type=c("g", "o"))
-write.csv(feat, file=paste0(feat_dir,"/features_raw.csv"))
+# write.csv(feat, file=paste0(feat_dir,"/features_raw.csv"))
 
 
-## 1) Removing genes with low variance ------------------------
-eliminate = data.frame(col = c(1:dim(data0)[2]), var_gene = colVars(data0))
-# head(eliminate)
-eliminate = subset(eliminate, var_gene<quantile(eliminate$var_gene, 0.3))
-# dim(data0)
-data1 = subset(data0, select = -c(eliminate$col))
-# dim(data1)
-
-
-## 2) Removing elements with low correlation with GA ----------
-data2 = data.frame(SampleID=row.names(data1), data1)
-row.names(data2) = NULL
-# Combining the two datasets 
-data2 = merge(sample[,c(1,2,5)], data2, by.x = 'SampleID', by.y = 'SampleID', all = T)
-#Using only the train dataset to make the feature importance 
-data2 = subset(data2, Train == 1)
-data2 = subset(data2, select = -c(Train,SampleID))
-
-eliminate = data.frame(col = c(1:dim(data1)[2]),corr = apply(data2[,-1], 2, cor, x=data2$GA))
-eliminate$corr = abs(eliminate$corr)
-eliminate = subset(eliminate, corr<quantile(eliminate$corr,0.3))
-dim(data2)
-data2 = subset(data1, select = -c(eliminate$col))
-dim(data2)
-# write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T)
+## 1 and 2) remove genes with low variance and absolute correlation
+# keep = subset(data_expl, variance>quantile(data_expl$variance, 0.7) & corr_p>quantile(data_expl$corr_p, 0.3) & mean>quantile(mean,0.5))
+data_expl$corr_p = abs(data_expl$corr_p)
+keep = subset(data_expl, variance>quantile(data_expl$variance, 0.3) & corr_p>quantile(data_expl$corr_p, 0.3))
+data2 = subset(data0, select=keep$col)
+write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T) # save for future use
 
 
 ## 3) PCA -----------------------------------------------------
 # https://www.datacamp.com/community/tutorials/pca-analysis-r
-# Don't need the values to be predicted, only the features
-PrePCA = preProcess(data2,method="pca")
-feat.pca = predict(PrePCA,data2)
-# PrePCA
+PrePCA = preProcess(data2, method="pca")
+feat.pca = predict(PrePCA, data2)
 write.csv(feat.pca, paste0(feat_dir,'/features_pca.csv'), row.names=T)
 
 
@@ -160,16 +175,14 @@ write.csv(feat.pca, paste0(feat_dir,'/features_pca.csv'), row.names=T)
 #https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest
 #https://uc-r.github.io/random_forests
 #http://www.rebeccabarter.com/blog/2017-11-17-caret_tutorial/
-# It depends on the features and the value to be predicted 
-# data2 = as.matrix(data2)
-# metric = "Accuracy"
-#Number randomely variable selected is mtry
-PreRF = caret::train(y=meta$GA[tr_ind0], x=data2[tr_ind0,], method='ranger',importance='impurity')
-
-# print(PreRF)
-PreRF.i = varImp(PreRF)$importance
-# PreRF.i = PreRF.i[order(PreRF.i$Overall, decreasing=T)[1:500],]
-# PreRF.i = PreRF.i[1:500,]
+data1 = subset(data1, select =keep$col)
+data1 = data.frame(ga_tr0, data1)
+if (!exists('PreRF')) {
+  PreRF = caret::train(y=ga_tr0, x=data1[,-1], method='ranger', importance='impurity')
+  PreRF.i = varImp(PreRF)$importance
+} else {
+  PreRF.i = varImp(PreRF)$importance
+}
 
 feat.ra = data2[,order(PreRF.i, decreasing=T)[1:500]]
 write.csv(feat.ra, paste0(feat_dir,'/features_ra.csv'), row.names = T)
@@ -179,13 +192,12 @@ write.csv(feat.ra, paste0(feat_dir,'/features_ra.csv'), row.names = T)
 #https://www.r-bloggers.com/pca-vs-autoencoders-for-dimensionality-reduction/
 #https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
 #https://www.rdocumentation.org/packages/ANN2/versions/1.5/topics/autoencoder
-
-#epochs changed to 100
-preA = autoencoder(data2,hidden.layers = c(1000, 500, 1000))
-feat.A = encode(preA, data2)
+if(!exists('preA')){
+  preA = autoencoder(data2, hidden.layers = c(1000, 500, 1000))
+  feat.A = encode(preA, data2)  
+}
+rownames(feat.A) = rownames(feat.ra)
 write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
-
-# save.image()
 
 
 
@@ -205,37 +217,40 @@ names(features) = gsub(".csv","",feat_paths)
 
 ## 1) prep cvn-fold cross validation & rmse function ----------
 cvinds_path = paste0(root,"/cvinds.Rdata")
-if (file.exists(cvinds_path)) {
-  load(cvinds_path)
-} else {
+if (!file.exists(cvinds_path)) {
   cvn = 10
-  tr_ind0 = which(meta$Train==1)
-  te_ind = sample(tr_ind0, ceiling(length(tr_ind0)/11))
-  tr_ind = sample(tr_ind0[!tr_ind0%in%te_ind])
-  ctr = as.numeric(meta$GA[tr_ind])
-  cte = as.numeric(meta$GA[te_ind])
-  save(cvn,tr_ind0,te_ind,tr_ind,ctr,cte, file=cvinds_path)
+  train_index = which(meta$Train==1) #selecting only the training examples
+  test_index = which(meta$Train==0)
+  train_index_val = sample(train_index, ceiling(length(train_index)/11)) # cross validation set
+  train_index_tr = sample(train_index[!train_index%in%train_index_val]) # remove cross validation set from training set 
+  ga_val = as.numeric(meta$GA[train_index_val])
+  ga_tr = as.numeric(meta$GA[train_index_tr]) 
+  save(cvn, train_index, train_index_val, train_index_tr, ga_val, ga_tr, file=cvinds_path)
 }
+load(cvinds_path)
+
+# 10-fold cv
+fitcv = trainControl(method="cv", number=cvn)
+
 # # cross validation function
 # rmse = function(x,y) sqrt(mean((x-y)^2))
-# cv_inds = split(tr_ind, cut(seq_along(tr_ind), cvn, labels=F))
+# cv_inds = split(train_index_tr, cut(seq_along(train_index_tr), cvn, labels=F))
 # cv_class = llply(cv_inds, function(is) meta$GA[is])
 # cv = function(data0, cv_inds, cv_class, fun, ...) {
 #   llply (1:length(cv_inds), function(i) {
 #     mtr = data0[unlist(cv_inds[-i]),]
-#     ctr = unlist(cv_class[-i])
+#     ga_tr = unlist(cv_class[-i])
 #     mte = data0[cv_inds[[i]],]
-#     cte_ = unlist(cv_class[-i])
-#     pte = fun(mtr, ctr, mte, ...)
-#     return(list(pte=pte, rmse=rmse(pte,cte_)))
+#     ga_val_ = unlist(cv_class[-i])
+#     pte = fun(mtr, ga_tr, mte, ...)
+#     return(list(pte=pte, rmse=rmse(pte,ga_val_)))
 #   })
 # }
 # # usage:
-# result_10x_rsme_pred = cv(data0, cv_inds, cv_class, function(mtr, ctr, mte) {
+# result_10x_rsme_pred = cv(data0, cv_inds, cv_class, function(mtr, ga_tr, mte) {
 #   ...
 #   return(pred) # vector of test class prediction
 # })
-fitcv = trainControl(method="cv", number=cvn)
 
 
 ## 2) test regression models ---------------------------------
@@ -252,7 +267,7 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   # "blassoAveraged", # 8.4; repeat
   ## "bridge", # 8.4; takes a bit longer 950
   #"brnn",       "BstLm",      "bstSm",      "bstTree",   
-  #"cforest",    "ctree",      "ctree2",     "cubist",    
+  #"cforest",    "ga_tree",      "ga_tree2",     "cubist",    
   #"DENFIS",     "earth",      "elm",       
   "dnn", 
   "enet", # 8.5      
@@ -328,7 +343,7 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   # "svmExpoString", # error on run
   # "svmLinear",  "svmLinear2", # 11 # "svmLinear3", # 9
   "svmPoly",    "svmRadial",  "svmRadialCost","svmRadialSigma", # 8.5
-  # "svmSpectrumString", # error on run
+  # "svmSpega_trumString", # error on run
   # "treebag", # 9.3   
   "widekernelpls", # 8.5
   # "WM", # 11
@@ -357,8 +372,8 @@ pars = list(
   # xgbLinear=expand.grid(nrounds, lambda, alpha, eta),
   # xgbTree=expand.grid(nrounds, max_depth, eta, gamma, colsample_bytree, min_child_weight, subsample),
   mlpML=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100))
-  # mlpKerasDropout=expand.grid(size=c(50,100), dropout=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear")),
-  # mlpKerasDecay=expand.grid(size=c(50,100), lambda=seq(0, .7, length=3), batch_size=floor(length(tr_ind)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
+  # mlpKerasDropout=expand.grid(size=c(50,100), dropout=seq(0, .7, length=3), batch_size=floor(length(train_index_tr)/3), lr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear")),
+  # mlpKerasDecay=expand.grid(size=c(50,100), lambda=seq(0, .7, length=3), batch_size=floor(length(train_index_tr)/3), lrlr=c(2e-6, 2e-3,.1,.5), rho=c(.2,.5,.9), decay=c(0,.3), activation=c("relu","softmax","linear"))
 )
 
 # use lapply/loop to run everything; best RMSE chosen by default
@@ -366,16 +381,16 @@ for (model in models) {
   cat("\n", model, " ------------------------------------------");
   for (xi in names(features)) {
     feature = features[[xi]]
-    mtr = feature[tr_ind,]
+    mtr = feature[train_index_tr,]
     
     dir.create(paste0(model_dir,"/",xi), showWarnings=F)
     fname = paste0(model_dir,"/",xi,"/",model,".Rdata")
     if (!file.exists(fname) | overwrite) { try ({ cat("\n", xi)
       t2i = NULL
       if (model%in%names(pars)) {
-        t2i = caret::train(y=ctr, x=mtr, model, trControl=fitcv, tuneGrid=pars[[model]])
+        t2i = caret::train(y=ga_tr, x=mtr, model, trControl=fitcv, tuneGrid=pars[[model]])
       } else {
-        t2i = caret::train(y=ctr, x=mtr, model, trControl=fitcv)#, tuneGrid=pars[[model]])
+        t2i = caret::train(y=ga_tr, x=mtr, model, trControl=fitcv)#, tuneGrid=pars[[model]])
       }
       if (!is.null(t2i)) save(t2i, file=fname)
     }) }
@@ -437,7 +452,7 @@ write.table(df1, file=paste0(result_dir,"/rmse_train.csv"))
 preds0 = llply(names(result0), function(xi) {
   feature = features[[xi]]
   res = extractPrediction(result0[[xi]], 
-    testX=feature[te_ind,], testY=cte, unkX=feature[-tr_ind0,]) # some features don't have test data
+    testX=feature[train_index_val,], testY=ga_val, unkX=feature[-train_index,]) # some features don't have test data
   return(res)
 }, .parallel=T)
 names(preds0) = names(result0)
@@ -468,9 +483,9 @@ rmsedf = ldply(names(preds0), function(xi) {
   ldply(unique(x$model), function(mi) {
     mii = x$model==mi
     pr = x$pred[mii]
-    data.frame(rmse=c(rmse(pr[1:length(tr_ind)], ctr),
-                      rmse(pr[(length(tr_ind)+1):(length(tr_ind)+length(te_ind))], cte),
-                      rmse(pr[1:length(tr_ind0)], meta$GA[append(tr_ind,te_ind)])),
+    data.frame(rmse=c(rmse(pr[1:length(train_index_tr)], ga_tr),
+                      rmse(pr[(length(train_index_tr)+1):(length(train_index_tr)+length(train_index_val))], ga_val),
+                      rmse(pr[1:length(train_index)], meta$GA[append(train_index_tr,train_index_val)])),
                feature=rep(xi,3), model=rep(mi,3), type=c("train","test","all"))
   })
 })
@@ -508,7 +523,7 @@ trte_diff = ldply(names(preds0), function(xi) {
     mii = x$model==mi
     pr = x$pred[mii]
     ob = x$pred[mii]
-    mdf = data.frame(diff=c(pr[1:length(tr_ind0)] - meta$GA[append(tr_ind,te_ind)]), feat.model=paste0(rep(xi,length(tr_ind0)), ".", rep(mi,length(tr_ind0))), sample=meta$SampleID[append(tr_ind,te_ind)])
+    mdf = data.frame(diff=c(pr[1:length(train_index)] - meta$GA[append(train_index_tr,train_index_val)]), feat.model=paste0(rep(xi,length(train_index)), ".", rep(mi,length(train_index))), sample=meta$SampleID[append(train_index_tr,train_index_val)])
     return(mdf)
   })
   return(xdf)
@@ -523,9 +538,9 @@ print(pl)
 graphics.off()
 
 # xdiffs = ldply(names(result), function(xi) {
-#   xdiff = unlist(llply(result[[xi]], function(x) x$pte)) - meta$GA[tr_ind]
+#   xdiff = unlist(llply(result[[xi]], function(x) x$pte)) - meta$GA[train_index_tr]
 #   return(data.frame(feature.model=rep(xi,length(xdiff)),
-#                     GAdiff=xdiff, sample=meta$SampleID[tr_ind]))
+#                     GAdiff=xdiff, sample=meta$SampleID[train_index_tr]))
 # })
 # 
 # png(paste0(result_dir, "/10cv_sample.png"))
@@ -566,6 +581,6 @@ parsl = unlist(llply(names(pars), function(x) {
   })
 }), recursive=F)
 model_list = caretList(
-  y=ctr, x=mtr, trControl=fitcv, metric="RMSE", 
+  y=ga_tr, x=mtr, trControl=fitcv, metric="RMSE", 
   methodList=models, tuneList=parsl)
 

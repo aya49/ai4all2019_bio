@@ -81,7 +81,7 @@ Deliverables
 - Project results: good feels
 
 
-### `drive`/`data`/
+### `data`/
 
 `00_input`/:
 - `HTA20_RMA.RData`: maternal whole-blood preprocessed **(32830/925032 gene/probeset x 367 train + 368 test samples)** expression matrix

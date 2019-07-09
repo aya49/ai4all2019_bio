@@ -4,7 +4,7 @@ output: html_notebook
 ---
 
 # Input Files:
-- features: (samples x 32830/925032 gene/probeset) RNAseq counts (+extracted features); data has been batch and count normalized
+- feature: (samples x 32830/925032 gene/probeset) RNAseq counts (+extracted feature); data has been batch and count normalized
 - Value: (367 train sample) gestational age 8-42 weeks
 
 # Output:
@@ -28,9 +28,9 @@ root = "C:\\Users\\raoki\\Documents\\GitHub\\ai4all2019_bio"
 setwd(root)
 
 
-## directories: create directories to save features, models, results 
+## directories: create directories to save feature, models, results 
 input_dir = paste0(root,"/00_input") # raw data directory
-feat_dir = paste0(root,"/01_features") # feature directory
+feat_dir = paste0(root,"/01_feature") # feature directory
 model_dir = paste0(root, "/02_models") # model directory
 result_dir = paste0(root, "/03_results") # stats/plots directory
 sapply(c(input_dir,feat_dir, model_dir, result_dir), 
@@ -40,7 +40,7 @@ sapply(c(input_dir,feat_dir, model_dir, result_dir),
 pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
          "lattice", "ggplot2", # barplot, plots
          "foreach", "doMC", # parallel back-end
-         "caret", "caretEnsemble",
+         "caret", "caretEnsemble", "Metrics",
          "deepnet", "e1071", "ranger", "ANN2", "randomForest",
          "elasticnet", "fastICA", "foba", "glmnet","kernlab", 
          "KRLS", "lars", "leaps", "nnls", "nodeHarvest", 
@@ -96,59 +96,56 @@ submission = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv"))
 Data Exploration: 
 
 ```{r}
-cat('Range\n');range(data0) ; cat('Genes IDs\n');gid = colnames(data0); head(gid) ;cat('Patients IDs\n');pid = rownames(data0); head(pid)
+cat('Range\n');range(data0);
+cat('Genes IDs\n'); gid = colnames(data0); head(gid);
+cat('Patients IDs\n'); pid = rownames(data0); head(pid)
 cat('Meta Data head and shape\n'); head(meta); dim(meta)
 cat('RNASEQ head and shape\n'); head(data0[,c(1:5)]); dim(data0)
 cat('Submission head and shape\n'); head(submission); dim(submission)
-
 ```
 
 Now we will explore the data with some plots. First we need to prepare the data and summarize the informatoin we will use in the plots. 
 
-
 ```{r}
 # plot stats: mean count, pearson/spearman corr
 
-#Using only the train dataset to calculate the correlation, mean and variance 
+# use only the train dataset to calculate the correlation, mean and variance 
 data1 = data.frame('SampleID' = rownames(data0), data0)
 data1 = merge(meta[,c(1,2,5)],data1,by.x = 'SampleID',by.y = 'SampleID', all = T)
 
-#splitting training set and testing set 
+# split training set and testing set 
 data1 = subset(data1, Train == 1) 
 data1 = subset(data1, select = -c(Train,SampleID))
 
 #train set 
-data_cor = data.frame(col = names(data1),corr_p = apply(data1, 2, cor, x = data1$GA, method = 'pearson'))
-data_cor = data.frame(data_cor, corr_s = apply(data1, 2, cor, x = data1$GA, method = 'spearman'))
-rownames(data_cor) = NULL 
+data_expl = data.frame(col = names(data1),corr_p = apply(data1, 2, cor, x = data1$GA, method = 'pearson'))
+data_expl = data.frame(data_expl, corr_s = apply(data1, 2, cor, x = data1$GA, method = 'spearman'))
+rownames(data_expl) = NULL 
 
 
 #Dataset with all information 
-data_cor = data.frame(data_cor, variance = c(var(data1$GA),colVars(data0)), mean = c(mean(data1$GA),colMeans(data0))) 
-data_cor = data_cor[-1,] # removing GA from the dataset
-
-
-
+data_expl = data.frame(data_expl, variance = c(var(data1$GA),colVars(data0)), mean = c(mean(data1$GA),colMeans(data0))) 
+data_expl = data_expl[-1,] # removing GA from the dataset
 ```
 
 To make the plots, we will use a library called ggplot2. Here are shown some plots we can make using this library. 
 
 ```{r}
 # plot stats
-p1 <- ggplot(data_cor, aes(x=mean)) + 
+p1 <- ggplot(data_expl, aes(x=mean)) + 
   geom_histogram(fill = 'lightgreen') + 
   xlab('Average Expression') + labs(title='(a)')
 
-p2 <- ggplot(data_cor, aes(x=mean, y = variance)) + 
+p2 <- ggplot(data_expl, aes(x=mean, y = variance)) + 
   geom_point(color = 'lightgreen')+
   xlab('Average Expression') + 
   ylab('Variance')+ labs(title='(b)')
 
-p3 <- ggplot(data_cor, aes(x=corr_p)) + 
+p3 <- ggplot(data_expl, aes(x=corr_p)) + 
   geom_histogram(fill = 'lightgreen')+
   xlab('Pearson Correlation between Genes and Gestacional Age')+ labs(title='(c)')
 
-p4 <- ggplot(data_cor, aes(x=corr_p, y = corr_s)) + 
+p4 <- ggplot(data_expl, aes(x=corr_p, y = corr_s)) + 
   geom_point(color = 'lightgreen')+ labs(title='(d)')+
   xlab('Pearson Correlation') + ylab('Spearman Correlation')
 
@@ -161,7 +158,7 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
 3. Can you think in any other intesresting plots or analysis? 
 
 ```{r}
-#insert here a new plot or analysis you think is instering
+#insert here a new plot or analysis you think is worth instering
 
 ```
 
@@ -175,7 +172,7 @@ Answer (delete):
 
 The original dataset has 32830 genes expressions. However, from the plot of the correlation we already know that some of these genes aren't associate with GA. Besides, genes with a very low variance might don't contribute for the prediction of gestacional age. Also, large datasets might add noise to machine leanring models. 
 
-We will use 5 methods do extract features. 
+We will use 5 methods do extract feature. 
 1. Elimination of 30% of genes with lowest variance; 
 2. Elimination of 30% of genes with lowest correlation with GA; 
 3. PCA
@@ -185,13 +182,12 @@ We will use 5 methods do extract features.
 ```{r, results='hide'}
 
 ## 1 and 2) Removing genes with low variance and low absolute correlation
-data_cor$corr_p = abs(data_cor$corr_p)
-keep = subset(data_cor, variance>quantile(data_cor$variance, 0.3) & corr_p>quantile(data_cor$corr_p,0.3))
+keep = subset(data_expl, variance>quantile(data_expl$variance, 0.3) & corr_p>quantile(abs(data_expl$corr_p), 0.3))
 
-data2 = subset(data0, select = keep$col)
+data2 = subset(data0, select=keep$col)
 
 ## Saving for future use
-write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T)
+write.csv(data2, paste0(feat_dir,'/feature_trraw.csv'), row.names=T)
 
 ```
 
@@ -199,25 +195,23 @@ write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T)
 ## 3) PCA
 PrePCA = preProcess(data2,method="pca")
 feat.pca = predict(PrePCA,data2)
-write.csv(feat.pca, paste0(feat_dir,'/features_pca.csv'), row.names=T)
+write.csv(feat.pca, paste0(feat_dir,'/feature_trpca.csv'), row.names=T)
 
 ```
 
 ```{r}
 ## 4) Random Forest 
-metric = "Accuracy"
-GA = data1$GA
 data1 = subset(data1, select =keep$col)
-data1 = data.frame(GA, data1)
+data1 = data.frame(GA1, data1)
 if(!exists('PreRF')){
-  PreRF = caret::train(y=data1$GA, x=data1[,-1],  method='ranger',importance='impurity')
+  PreRF = caret::train(y=GA1, x=data1[,-1],  method='ranger',importance='impurity')
   PreRF.i = varImp(PreRF)$importance
 }else{
   PreRF.i = varImp(PreRF)$importance
 }
 
 feat.ra = data2[,order(PreRF.i, decreasing=T)[1:500]]
-write.csv(feat.ra, paste0(feat_dir,'/features_ra.csv'), row.names = T)
+write.csv(feat.ra, paste0(feat_dir,'/feature_trra.csv'), row.names = T)
 
 ```
 
@@ -229,12 +223,12 @@ if(!exists('preA')){
   feat.A = encode(preA, data2)  
 }
 rownames(feat.A) = rownames(feat.ra)
-write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
+write.csv(feat.A, paste0(feat_dir,'/feature_tra.csv'), row.names = T)
 ```
 
 ### Exercise 2: 
 1. What parameters do you think you could change? 
-2. Choose between PCA and Random Forest. Try to save a new features set with a different number of features. 
+2. Choose between PCA and Random Forest. Try to save a new feature set with a different number of feature. 
 
 ```{r}
 #feat.unique = predict(PrePCA,data2) #for pca OR
@@ -246,7 +240,7 @@ write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
 
 ##3. Machine Learning models
 
-In this section we will work which the Machine Learning Models. We have 5 different sets of features (RAW, PCA, RA, A, UNIQUE) and we will first work with 3 models: Linear Regression, RVM and Random Forest. The best model will be selected based on the difference between the values we observed on the training set for GA (Gestacional Age) and the predicted values for the combination of MODEL+FEATURE. The lowest is this difference on the validation set, the better. 
+In this section we will work which the Machine Learning Models. We have 5 different sets of feature (RAW, PCA, RA, A, UNIQUE) and we will first work with 3 models: Linear Regression, RVM and Random Forest. The best model will be selected based on the difference between the values we observed on the training set for GA (Gestacional Age) and the predicted values for the combination of MODEL+FEATURE. The lowest is this difference on the validation set, the better. 
 
 Before we begin to test the models, we need to set up an experimental framework to so that we can evaluate our results once they come out. One such technique is a resampling procedure called ```cvn```-fold cross validation (here we set ```cvn``` to 10).
 
@@ -264,20 +258,17 @@ Answer (delete):
 ```{r}
 ## 1) prep cvn-fold cross validation & rmse function
 cvinds_path = paste0(root,"/cvinds.Rdata")
-if(file.exists(cvinds_path)){
-  load(cvinds_path)
-} else {
+if(!file.exists(cvinds_path)){
   cvn = 10
   train_index = which(meta$Train==1) #selecting only the training examples
   test_index = which(meta$Train==0)
-  train_index_val = sample(train_index, ceiling(length(train_index)/11)) #cross validation set
-  train_index_ = sample(train_index[!train_index%in%train_index_val]) #removing cross validation set from training set 
+  train_index_val = sample(train_index, ceiling(length(train_index)/11)) # cross validation set
+  train_index_tr = sample(train_index[!train_index%in%train_index_val]) # remove cross validation set from training set 
   ga_val = as.numeric(meta$GA[train_index_val])
-  ga_ = as.numeric(meta$GA[train_index_]) 
-  save(cvn,train_index,train_index_val,train_index_,ga_val,ga_, file=cvinds_path)
+  ga_tr = as.numeric(meta$GA[train_index_tr]) 
+  save(cvn, train_index, train_index_val, train_index_tr, ga_val, ga_tr, file=cvinds_path)
 }
-
-require(Metrics)
+load(cvinds_path)
 
 ```
 
@@ -292,26 +283,27 @@ Linear regression is fast and intuitive, but there are many data sets that do no
 ```{r, warning=FALSE}
 feature_type = 'pca' #options are 'pca', 'raw', 'ra' for random forest and 'a' for autoencoder
 ## 0) load feature 
-features = read.csv(paste(feat_dir,"/features_",feature_type,'.csv', sep = ''))
-rownames(features) = features[,1]
-features = as.matrix(features[,-1])
+feature = read.csv(paste(feat_dir,"/feature_tr",feature_type,'.csv', sep = ''))
+rownames(feature) = feature[,1]
+feature = as.matrix(feature[,-1])
 
-#SPliting features of training and validation set
-features_ = features[train_index_,]
-features_val = features[train_index_val,]
-train_ = data.frame(ga_,features_)
+#SPliting feature of training and validation set
+feature_tr = feature[train_index_tr,]
+feature_val = feature[train_index_val,]
+train_ = data.frame(ga_tr,feature_tr)
 
 #Linear REgression model
-model1 = lm(ga_ ~ .,data = train_)
+model1 = lm(ga_tr ~ .,data = train_)
 #Predictions
 predictions_m1 = predict(model1, newdata = train_[,-1])
 #Error from the observed values and fitted values
-rmse(ga_, predictions_m1)
+rmse(ga_tr, predictions_m1)
 
 ```
+
 ```{r}
-plotdata = data.frame(ga_,predictions_m1)
-ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
+plotdata = data.frame(ga_tr,predictions_m1)
+ggplot(plotdata, aes(x = ga_tr,y = predictions_m1))+
   geom_point(color = 'lightgreen')+
   xlab('Linear Regression Model - Training Set')+
   ylab('Predicted Values')
@@ -319,7 +311,7 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
 ```
 
 ### Exercise 4: 
-Calculate the predictions for features_val and ga_val using linear regression. With the predicted values, make a plot predictions_m1_val and ga_val
+Calculate the predictions for feature_val and ga_val using linear regression. With the predicted values, make a plot predictions_m1_val and ga_val
 ```{r, warning=FALSE}
 #predictions_m1_val = predict()
 #rmse()
@@ -343,24 +335,24 @@ RVM is functionally identicle to SVM. The Bayesian treatment is a fancy way of s
 
 In both cases, the user defined formua that calculates distances between data points are called "kernels".
 
-RVMs are fast to train and easy to use, but it can become less effective if the data set used has too many features because it depends on possibly dimension sensative kernel functions.
+RVMs are fast to train and easy to use, but it can become less effective if the data set used has too many feature because it depends on possibly dimension sensative kernel functions.
 
 ```{r}
 
-model2 = rvm(x = features_, ga_, type="regression")
-predictions_m2 = predict(model2,data = as.data.frame(features_))
-rmse(ga_,predictions_m2)
+model2 = rvm(x = feature_tr, ga_tr, type="regression")
+predictions_m2 = predict(model2,data = as.data.frame(feature_tr))
+rmse(ga_tr,predictions_m2)
 
 
-plotdata = data.frame(ga_,predictions_m2)
-ggplot(plotdata, aes(x = ga_,y = predictions_m2))+
+plotdata = data.frame(ga_tr,predictions_m2)
+ggplot(plotdata, aes(x = ga_tr,y = predictions_m2))+
   geom_point(color = 'lightgreen')+
   ylab('Predicted Values')+
   xlab('RVM - Training Set')
 
 ```
 ### Exercise 5: 
-Calculate the predictions for features_val and ga_val using rvm. With the predicted values, make a plot predictions_m1_val and ga_val
+Calculate the predictions for feature_val and ga_val using rvm. With the predicted values, make a plot predictions_m1_val and ga_val
 ```{r, warning=FALSE}
 #predictions_m2_val = predict()
 #rmse()
@@ -378,22 +370,22 @@ Calculate the predictions for features_val and ga_val using rvm. With the predic
 
 A random forest is an aggregate of decision trees formed via model training. A decision tree is a decision making template in the form of "if this then that"; in our case, this decision would be "if this gene is expressed often, then the woman is in her 32nd week of gestation". 
 
-Decision trees and the rules they contain are interpretable and easy to understand. As well combining many decision trees together yield more robust results. However, it can be slow if there are too many features and it is more suited for predicting categorical results.
+Decision trees and the rules they contain are interpretable and easy to understand. As well combining many decision trees together yield more robust results. However, it can be slow if there are too many feature and it is more suited for predicting categorical results.
 
 ```{r}
-model3 = ranger(ga_~.,data = train_)
-predictions_m3 = predict(model3, data = as.data.frame(features_)) 
-rmse(ga_,predictions_m3$predictions)
+model3 = ranger(ga_tr~.,data = train_)
+predictions_m3 = predict(model3, data = as.data.frame(feature_tr)) 
+rmse(ga_tr,predictions_m3$predictions)
 
-plotdata = data.frame(ga_,predictions_m3$predictions)
-ggplot(plotdata, aes(x = ga_,y = predictions_m3.predictions))+
+plotdata = data.frame(ga_tr,predictions_m3$predictions)
+ggplot(plotdata, aes(x = ga_tr,y = predictions_m3.predictions))+
   geom_point(color = 'lightgreen')+
   ylab('Predicted Values')+
   xlab('Random Forest - Training Set')
 
 ```
 ### Exercise 6: 
-Calculate the predictions for features_val and ga_val using Random Forest. With the predicted values, make a plot predictions_m1_val and ga_val
+Calculate the predictions for feature_val and ga_val using Random Forest. With the predicted values, make a plot predictions_m1_val and ga_val
 ```{r, warning=FALSE}
 #predictions_m3_val = predict()
 #rmse()
@@ -408,7 +400,7 @@ Calculate the predictions for features_val and ga_val using Random Forest. With 
 
 
 ### Exercise 7:
-Repite the Linear Regression, SCM and Random Forest with 2 other sets of features: 'raw', 'ra' for random forest or 'a' for autoencoder and the 'unique' set of features you made on  Exercise 2. From the set of features you choose, which one have the best result? Why?
+Repite the Linear Regression, SCM and Random Forest with 2 other sets of feature: 'raw', 'ra' for random forest or 'a' for autoencoder and the 'unique' set of feature you made on  Exercise 2. From the set of feature you choose, which one have the best result? Why?
 
 SET OF FEATURES 1
 ```{r, warning=FALSE}
@@ -416,21 +408,21 @@ SET OF FEATURES 1
 #feature_type =  #options are 'pca', 'raw', 'ra' for random forest and 'a' for autoencoder
 
 ## 0) load feature 
-features = read.csv(paste(feat_dir,"/features_",feature_type,'.csv', sep = ''))
-rownames(features) = features[,1]
-features = as.matrix(features[,-1])
-features_ = features[train_index_,]
-features_val = features[train_index_val,]
-train_ = data.frame(ga_,features_)
+feature = read.csv(paste(feat_dir,"/feature_tr",feature_type,'.csv', sep = ''))
+rownames(feature) = feature[,1]
+feature = as.matrix(feature[,-1])
+feature_tr = feature[train_index_tr,]
+feature_val = feature[train_index_val,]
+train_ = data.frame(ga_tr,feature_tr)
 
 #----------------------   Linear Regression
-model1 = lm(ga_ ~ .,data = train_)
+model1 = lm(ga_tr ~ .,data = train_)
 predictions_m1 = predict(model1, newdata = train_[,-1])
-rmse(ga_, predictions_m1)
+rmse(ga_tr, predictions_m1)
 
 #PLOT 
-plotdata = data.frame(ga_,predictions_m1)
-ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
+plotdata = data.frame(ga_tr,predictions_m1)
+ggplot(plotdata, aes(x = ga_tr,y = predictions_m1))+
   geom_point(color = 'lightgreen')+
   xlab('Linear Regression Model - Training Set')+
   ylab('Predicted Values')
@@ -455,21 +447,21 @@ SET OF FEATURES unique
 #feature_type =  #options are 'pca', 'raw', 'ra' for random forest and 'a' for autoencoder
 
 ## 0) load feature 
-features = read.csv(paste(feat_dir,"/features_",feature_type,'.csv', sep = ''))
-rownames(features) = features[,1]
-features = as.matrix(features[,-1])
-features_ = features[train_index_,]
-features_val = features[train_index_val,]
-train_ = data.frame(ga_,features_)
+feature = read.csv(paste(feat_dir,"/feature_tr",feature_type,'.csv', sep = ''))
+rownames(feature) = feature[,1]
+feature = as.matrix(feature[,-1])
+feature_tr = feature[train_index_tr,]
+feature_val = feature[train_index_val,]
+train_ = data.frame(ga_tr,feature_tr)
 
 #----------------------   Linear Regression
-model1 = lm(ga_ ~ .,data = train_)
+model1 = lm(ga_tr ~ .,data = train_)
 predictions_m1 = predict(model1, newdata = train_[,-1])
-rmse(ga_, predictions_m1)
+rmse(ga_tr, predictions_m1)
 
 #PLOT 
-plotdata = data.frame(ga_,predictions_m1)
-ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
+plotdata = data.frame(ga_tr,predictions_m1)
+ggplot(plotdata, aes(x = ga_tr,y = predictions_m1))+
   geom_point(color = 'lightgreen')+
   xlab('Linear Regression Model - Training Set')+
   ylab('Predicted Values')
@@ -488,14 +480,14 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
 ```
 
 ###Exercise 8: 
-Create a plot to identify which model or set of features is the best between so far. 
+Create a plot to identify which model or set of feature is the best between so far. 
 
 ```{r, warning=FALSE}
-#Saving the results of the predictions when the .unique features were used 
+#Saving the results of the predictions when the .unique feature were used 
 output_unique = data.frame(
   model = c('LR','RVM','RF'),
   feature = c(rep('unique',3) ),
-  rmse_t = c(rmse(ga_, predictions_m1),rmse(ga_,predictions_m2),rmse(ga_,predictions_m3$predictions) ),
+  rmse_t = c(rmse(ga_tr, predictions_m1),rmse(ga_tr,predictions_m2),rmse(ga_tr,predictions_m3$predictions) ),
   rmse_val = c(rmse(ga_val, predictions_m1v),rmse(ga_val,predictions_m2v),rmse(ga_val,predictions_m3v$predictions) )
 )
 
@@ -515,26 +507,26 @@ output = rbind(output,output_unique)
 Basides the models shown in the prevous section, there are many other models or variations of that models we could use to explore this problem. However, some of them are more time consuming, thus we trained some extra models and we saved their results, so now all we need is make the predictions and check their RMSE. 
 
 
-First we define the features and the model we want to explore:
+First we define the feature and the model we want to explore:
 ```{r}
 # overwrite model?
 overwrite = F
 
-# features
-feature_name = "features_a" # ra, a, pca, raw
+# feature
+feature_name = "feature_tra" # ra, a, pca, raw
 
-##load the features
-features = read.csv(paste0(feat_dir,"/", feature_name,'.csv'))
-rownames(features) = features[,1]
-features = as.matrix(features[,-1])
+##load the feature
+feature = read.csv(paste0(feat_dir,"/", feature_name,'.csv'))
+rownames(feature) = feature[,1]
+feature = as.matrix(feature[,-1])
 
 #spliting the validation and testing set
-features_ = features[train_index_,]
-features_val = features[train_index_val,]
+feature_tr = feature[train_index_tr,]
+feature_val = feature[train_index_val,]
 ```
 
 
-Then we run this chunk that will load the model case the model is available or run the model with the features and model specified.
+Then we run this chunk that will load the model case the model is available or run the model with the feature and model specified.
 ```{r}
 # model options:
 #enet, foba, gaussprPolyg, gaussprRadial,glmnet, icr, kernelpls, krlsRadial, lars2, lasso, leapBackward, leapForward, leapSeq, nnls, partDSA, pls , plsRglm, rbf, rpart, rqlasso, rvmPoly, rvmRadial, simpls, spikeslab, spls, svmPoly, svmRadial, svmRadialCost, svmRadialSigma, widekernelpls, rqnc, nodeHarvest, mlpML, xgbDART
@@ -549,9 +541,9 @@ fname = paste0(model_dir,"/",feature_name,"/",model,".Rdata")
 if (!file.exists(fname) | overwrite) { try ({
   t2i = NULL
   if (!is.null(parsi)) {
-    t2i = caret::train(y=ga_, x=features_, model, trControl=fitcv, tuneGrid=parsi)
+    t2i = caret::train(y=ga_tr, x=feature_tr, model, trControl=fitcv, tuneGrid=parsi)
   } else {
-    t2i = caret::train(y=ga_, x=features_, model, trControl=fitcv)
+    t2i = caret::train(y=ga_tr, x=feature_tr, model, trControl=fitcv)
   }
   if (!is.null(t2i)) save(t2i, file=fname)
 }) }
@@ -568,18 +560,18 @@ df = data.frame(
 df
 
 ```
-Now we will explore the predictions of these models+features:
+Now we will explore the predictions of these models+feature:
 
 ```{r, results='hide', message=FALSE}
 ##get test prediction results from models ----------------------
-pred = predict(t2i,newdata = as.data.frame(features_))
-pred_val = predict(t2i,newdata = as.data.frame(features_val))
+pred = predict(t2i,newdata = as.data.frame(feature_tr))
+pred_val = predict(t2i,newdata = as.data.frame(feature_val))
 title = paste(feature_name,model, sep = '-')
 
 # plot graph to compare models
-plot1 = data.frame(ga_,pred)
+plot1 = data.frame(ga_tr,pred)
 plot2 = data.frame(ga_val, pred_val)
-pred1 <- ggplot(plot1, aes(x = ga_,y=pred)) + geom_point(color='orange')+
+pred1 <- ggplot(plot1, aes(x = ga_tr,y=pred)) + geom_point(color='orange')+
   ylab('Predicted')+xlab('Training set')+labs(title=title)
 
 pred2 <- ggplot(plot2, aes(x = ga_val,y=pred_val)) + geom_point(color='orange')+
@@ -592,24 +584,24 @@ ggsave(filename = paste(result_dir,'/','predictions-',title,'.png',sep=''),grid1
 
 
 ### Exercise 9: 
-Explore more combinations of models and features. Keep the results of the top 3 models you found. Discuss with your colleagues their results. Answer: 
+Explore more combinations of models and feature. Keep the results of the top 3 models you found. Discuss with your colleagues their results. Answer: 
 * Are they similar? How you defined which models were the best? 
 * Can you think in a more efficient way to compare all the models available? 
 
 
 ####Model 1 
 ```{r}
-# features
-feature_name = "features_a" # ra, a, pca, raw
+# feature
+feature_name = "feature_tra" # ra, a, pca, raw
 
-##load the features
-features = read.csv(paste0(feat_dir,"/", feature_name,'.csv'))
-rownames(features) = features[,1]
-features = as.matrix(features[,-1])
+##load the feature
+feature = read.csv(paste0(feat_dir,"/", feature_name,'.csv'))
+rownames(feature) = feature[,1]
+feature = as.matrix(feature[,-1])
 
 #spliting the validation and testing set
-features_ = features[train_index_,]
-features_val = features[train_index_val,]
+feature_tr = feature[train_index_tr,]
+feature_val = feature[train_index_val,]
 
 # model options:
 #enet, foba, gaussprPolyg, gaussprRadial,glmnet, icr, kernelpls, krlsRadial, lars2, lasso, leapBackward, leapForward, leapSeq, nnls, partDSA, pls , plsRglm, rbf, rpart, rqlasso, rvmPoly, rvmRadial, simpls, spikeslab, spls, svmPoly, svmRadial, svmRadialCost, svmRadialSigma, widekernelpls, rqnc, nodeHarvest, mlpML, xgbDART
@@ -623,9 +615,9 @@ fname = paste0(model_dir,"/",feature_name,"/",model,".Rdata")
 if (!file.exists(fname) | overwrite) { try ({
   t2i = NULL
   if (!is.null(parsi)) {
-    t2i = caret::train(y=ga_, x=features_, model, trControl=fitcv, tuneGrid=parsi)
+    t2i = caret::train(y=ga_tr, x=feature_tr, model, trControl=fitcv, tuneGrid=parsi)
   } else {
-    t2i = caret::train(y=ga_, x=features_, model, trControl=fitcv)
+    t2i = caret::train(y=ga_tr, x=feature_tr, model, trControl=fitcv)
   }
   if (!is.null(t2i)) save(t2i, file=fname)
 }) }
@@ -642,14 +634,14 @@ df = data.frame(
 df
 
 ##get test prediction results from models ----------------------
-pred = predict(t2i,newdata = as.data.frame(features_))
-pred_val = predict(t2i,newdata = as.data.frame(features_val))
+pred = predict(t2i,newdata = as.data.frame(feature_tr))
+pred_val = predict(t2i,newdata = as.data.frame(feature_val))
 title = paste(feature_name,model, sep = '-')
 
 # plot graph to compare models
-plot1 = data.frame(ga_,pred)
+plot1 = data.frame(ga_tr,pred)
 plot2 = data.frame(ga_val, pred_val)
-pred1 <- ggplot(plot1, aes(x = ga_,y=pred)) + geom_point(color='orange')+
+pred1 <- ggplot(plot1, aes(x = ga_tr,y=pred)) + geom_point(color='orange')+
   ylab('Predicted')+xlab('Training set')+labs(title=title)
 
 pred2 <- ggplot(plot2, aes(x = ga_val,y=pred_val)) + geom_point(color='orange')+
@@ -674,7 +666,7 @@ ggsave(filename = paste(result_dir,'/','predictions-',title,'.png',sep=''),grid1
 
 #Prediction For the Competition 
 
-As all Data SCience/Machine Learning project, we have spend most of the time so far procesing the data, exploring the dataset, creating/selecting features, exploring different models to define which one is the best option for our main task: predict the Gestacional Age of our testing set. 
+As all Data SCience/Machine Learning project, we have spend most of the time so far procesing the data, exploring the dataset, creating/selecting feature, exploring different models to define which one is the best option for our main task: predict the Gestacional Age of our testing set. 
 
 Now, we will finale create the predictions for our test set. 
 
@@ -686,10 +678,10 @@ Now, we will finale create the predictions for our test set.
 
 
 ```{r}
-features_pred = features[test_index,]
+feature_trpred = feature[test_index,]
 
 #INSERT HERE MODEL
-#predictions = predict(-MODEL-, data = as.data.frame(features_pred)) 
+#predictions = predict(-MODEL-, data = as.data.frame(feature_trpred)) 
 
 # submission template
 class_final = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv")) 
