@@ -22,13 +22,13 @@ rm(list=ls(all=T)) # clean the environment
 set.seed(10)
 
 
-## Defining the work directory of the project  
-#root = "/mnt/f/Brinkman group/current/Alice/ai4all2019_bio"
+## root: define the working directory of the project 
+# root = "/mnt/f/Brinkman group/current/Alice/ai4all2019_bio"
 root = "C:\\Users\\raoki\\Documents\\GitHub\\ai4all2019_bio"
 setwd(root)
 
 
-## Creating sub directories to save data, features, model and results 
+## directories: create directories to save features, models, results 
 input_dir = paste0(root,"/00_input") # raw data directory
 feat_dir = paste0(root,"/01_features") # feature directory
 model_dir = paste0(root, "/02_models") # model directory
@@ -36,31 +36,33 @@ result_dir = paste0(root, "/03_results") # stats/plots directory
 sapply(c(input_dir,feat_dir, model_dir, result_dir), 
        function(x) dir.create(x, showWarnings=F))
 
-## load packages; need to fix according to what model we'll be using
+## load packages
 pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
-         "lattice", "ggplot2",'gridExtra', # barplot, plots
+         "lattice", "ggplot2", # barplot, plots
          "foreach", "doMC", # parallel back-end
-         "caret", "e1071", "ranger", "ANN2", "randomForest",
+         "caret", "caretEnsemble",
+         "deepnet", "e1071", "ranger", "ANN2", "randomForest",
          "elasticnet", "fastICA", "foba", "glmnet","kernlab", 
          "KRLS", "lars", "leaps", "nnls", "nodeHarvest", 
          "partDSA", "pls", "plsRglm", "rpart", "rqPen",
-         "RSNNS", "spikeslab", "xgboost",'Metrics') # ml
+         "RSNNS", "spikeslab") # ml
 pkgs_ui = setdiff(pkgs, rownames(installed.packages()))
 if (length(pkgs_ui) > 0) install.packages(pkgs_ui, verbose=F)
 sapply(pkgs, require, character.only=T)
 
+
 ## script options
 #no_cores = detectCores()-1 # number of cores to use in parallel
 #registerDoMC(no_cores)
-overwrite = F 
+
+overwrite = F # overwrite results?
 
 
-#load workspace for time consuming tasks 
+## load workspace for time consuming tasks 
 load(paste(input_dir,'script.RData',sep='\\'))
-
 ```
 
-Next, we will load the input files. There are 3 files:
+Next, we will load 3 input files:
 
 1. Sample Annotation file: 
 
@@ -80,16 +82,14 @@ Next, we will load the input files. There are 3 files:
 ```{r,warning=FALSE, message=FALSE, error = FALSE}
 ## load input files
 
-#Sample Annotation file
-meta=  read.csv(paste0(input_dir,"/anoSC1_v11_nokey.csv"))
+# sample Annotation file
+meta = read.csv(paste0(input_dir,"/anoSC1_v11_nokey.csv"))
 
 # RNASEQ data
 data0 = t(get(load(paste0(input_dir,"/HTA20_RMA.RData"))))
 
-
 # submission template
 submission = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv")) 
-
 ```
 
 

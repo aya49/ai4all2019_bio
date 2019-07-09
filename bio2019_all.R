@@ -3,8 +3,8 @@
 ##   - class: (367 train sample) gestational age 8-42 weeks
 ## output:
 ##   - class: (368 test sample) gestational age 8-42 weeks rounded to 1 decimal place
-## created: 201906
-## author: 
+## created: 2019-06
+## author: alice yue (aya43@sfu.ca); raquel aoki (raquel_aoki@sfu.ca)
 
 
 #--------#--------#--------#--------#--------#--------#--------
@@ -15,13 +15,13 @@ rm(list=ls(all=T)) # clean the environment
 set.seed(10)
 
 
-## root 
-#root = "/mnt/f/Brinkman group/current/Alice/ai4all2019_bio"
-root = "C:\\Users\\raque\\Documents\\GitHub\\ai4all2019_bio"
+## root: define the working directory of the project 
+root = "/mnt/f/Brinkman group/current/Alice/ai4all2019_bio"
+# root = "C:\\Users\\raque\\Documents\\GitHub\\ai4all2019_bio"
 setwd(root)
 
 
-## directories
+## directories: create directories to save features, models, results 
 input_dir = paste0(root,"/00_input") # raw data directory
 feat_dir = paste0(root,"/01_features") # feature directory
 model_dir = paste0(root, "/02_models") # model directory
@@ -30,44 +30,42 @@ sapply(c(input_dir,feat_dir, model_dir, result_dir),
        function(x) dir.create(x, showWarnings=F))
 
 
-## load packages; need to fix according to what model we'll be using
+## load packages
 pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
          "lattice", "ggplot2", # barplot, plots
          "foreach", "doMC", # parallel back-end
-         "caret", "e1071", "ranger", "ANN2", "randomForest",
+         "caret", "caretEnsemble",
+         "deepnet", "e1071", "ranger", "ANN2", "randomForest",
          "elasticnet", "fastICA", "foba", "glmnet","kernlab", 
          "KRLS", "lars", "leaps", "nnls", "nodeHarvest", 
          "partDSA", "pls", "plsRglm", "rpart", "rqPen",
-         "RSNNS", "spikeslab", "xgboost") # ml
+         "RSNNS", "spikeslab") # ml
 pkgs_ui = setdiff(pkgs, rownames(installed.packages()))
 if (length(pkgs_ui) > 0) install.packages(pkgs_ui, verbose=F)
 sapply(pkgs, require, character.only=T)
 
 
 ## script options
-no_cores = detectCores()-1 # number of cores to use in parallel
+no_cores = detectCores()-1 # no of cores to use in parallel processing
 registerDoMC(no_cores)
 
 overwrite = F # overwrite results?
 
 
+## load workspace for time consuming tasks 
+load(paste(input_dir,'script.RData',sep='\\'))
+
+
 ## load input files
 
-# sample annotation file columns:
-#  SampleID: unique identifier of the sample (matching the name of the .CEL file in HTA20 folder, except for extension .CEL);
-#  GA: gestational age as determined by the last menstrual period and or ultrasound;
-#  Batch: the batch identifier;
-#  Set: name of the source dataset;
-#  Train: 1 for samples to be used for training, 0 for samples to be used for test;
+# sample annotation file
 meta = read.csv(paste0(input_dir,"/anoSC1_v11_nokey.csv"))
 
-# submission template
-class_final = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv")) 
-
-# RNASEQ data: each row is a gene and each column a patient 
-#  probeset: gene ID
-#  pid: patient id 
+# RNASEQ data
 data0 = t(get(load(paste0(input_dir,"/HTA20_RMA.RData"))))
+
+# submission template
+submission = read.csv(paste0(input_dir,"/TeamX_SC1_prediction.csv")) 
 
 
 ## data exploration ----------------------------
@@ -113,13 +111,13 @@ graphics.off()
 
 ## temp data prep -------------------------------------------
 # save only high variance genes and those with high sig pearson corr with GA
-m = data0[,datavars>quantile(datavars,0.7) & abs(corsp)>quantile(abs(corsp),0.7) & corspp<quantile(corspp,0.1) & meancount>quantile(meancount,0.5)]
+feat = data0[,datavars>quantile(datavars,0.7) & abs(corsp)>quantile(abs(corsp),0.7) & corspp<quantile(corspp,0.1) & meancount>quantile(meancount,0.5)]
 # # rfe to reduce features random forest
 # rfe_res = rfe(m[tr_ind,], meta$GA[tr_ind], sizes=c(1:8), rfeControl=rfeControl(functions=rfFuncs, method="cv", number=10))
 # print(rfe_res)
 # predictors(rfe_res)
 # plot(rfe_res, type=c("g", "o"))
-write.csv(m, file=paste0(feat_dir,"/features_raw.csv"))
+write.csv(feat, file=paste0(feat_dir,"/features_raw.csv"))
 
 
 ## 1) Removing genes with low variance ------------------------
@@ -164,7 +162,7 @@ write.csv(feat.pca, paste0(feat_dir,'/features_pca.csv'), row.names=T)
 #http://www.rebeccabarter.com/blog/2017-11-17-caret_tutorial/
 # It depends on the features and the value to be predicted 
 # data2 = as.matrix(data2)
-metric = "Accuracy"
+# metric = "Accuracy"
 #Number randomely variable selected is mtry
 PreRF = caret::train(y=meta$GA[tr_ind0], x=data2[tr_ind0,], method='ranger',importance='impurity')
 
@@ -197,12 +195,12 @@ write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
 
 ## 0) load features ----------------------------------------
 feat_paths = list.files(feat_dir) # feature paths
-m0s = llply(feat_paths, function(xi) {
-  m0 = read.csv(paste0(feat_dir,"/", xi))
-  rownames(m0) = m0[,1]
-  m0 = as.matrix(m0[,-1])
+features = llply(feat_paths, function(xi) {
+  feature = read.csv(paste0(feat_dir,"/", xi))
+  rownames(feature) = feature[,1]
+  feature = as.matrix(feature[,-1])
 })
-names(m0s) = gsub(".csv","",feat_paths)
+names(features) = gsub(".csv","",feat_paths)
 
 
 ## 1) prep cvn-fold cross validation & rmse function ----------
@@ -255,7 +253,8 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   ## "bridge", # 8.4; takes a bit longer 950
   #"brnn",       "BstLm",      "bstSm",      "bstTree",   
   #"cforest",    "ctree",      "ctree2",     "cubist",    
-  #"DENFIS",     "dnn",        "earth",      "elm",       
+  #"DENFIS",     "earth",      "elm",       
+  "dnn", 
   "enet", # 8.5      
   # "evtree",     "extraTrees", "FIR.DM", # no pkg  
   "foba", # 8.5      
@@ -284,7 +283,7 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   "lars2", # 8.5      
   "lasso", # 8.7     
   "leapBackward", "leapForward", "leapSeq", # 8.5
-  # "lm","lmStepAIC", # 10
+  "lm","lmStepAIC", # 10
   # "logicBag",   "logreg", "M5","M5Rules", # no pkg
   # "mlp", # 10
   # "mlpKerasDecay","mlpKerasDropout",  # error on run
@@ -320,7 +319,8 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   "rqlasso", # 8.4
   # "RRF",        "RRFglobal", # 9 
   # "rvmLinear", # 8.6
-  "rvmPoly",    "rvmRadial", # 8.5
+  "rvmPoly", # 8.5
+  "rvmRadial", # 8.5
   # "SBC", # 12        
   "simpls", "spikeslab",  # "spls", # 8.5; spls takes a bit longer 950
   # "superpc", # lowest score 27
@@ -334,14 +334,15 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   # "WM", # 11
   "rqnc", # 8.4
   "nodeHarvest", # 8.6
-  "mlpML", # 8.5
-  "xgbDART" # extreme gradient boosting is good; "xgbLinear", # takes too long
+  "mlpML" # 8.5
+  # "xgbDART" # extreme gradient boosting is good; "xgbLinear", # takes too long
   # "xgbTree",    "xyf"
 )
 # models = unique(modelLookup()[modelLookup()$forReg,c(1)])
 
 # list model parameters to test
 pars = list(
+  dnn=expand.grid(layer1=100, layer2=50, layer3=10, hidden_dropout=c(0,2,5), visible_dropout=c(0,2,5)), # drop out fraction for hidden/input layer. 
   # gbm=expand.grid(interaction.depth = c(1:5), #3 # gradient booted machine
   #                 n.trees = (seq(1,30,3))*50,
   #                 shrinkage = 0.1,
@@ -363,9 +364,9 @@ pars = list(
 # use lapply/loop to run everything; best RMSE chosen by default
 for (model in models) {
   cat("\n", model, " ------------------------------------------");
-  for (xi in names(m0s)) {
-    m0 = m0s[[xi]]
-    mtr = m0[tr_ind,]
+  for (xi in names(features)) {
+    feature = features[[xi]]
+    mtr = feature[tr_ind,]
     
     dir.create(paste0(model_dir,"/",xi), showWarnings=F)
     fname = paste0(model_dir,"/",xi,"/",model,".Rdata")
@@ -384,8 +385,7 @@ for (model in models) {
 
 
 ## 3) load models -----------------------------------
-feat_dirs = list.dirs(model_dir, full.names=F)
-feat_dirs = feat_dirs[!feat_dirs%in%""]
+fd = list.dirs(model_dir, full.names=F); feat_dirs = fd[!fd%in%""]
 result0 = llply(feat_dirs, function(data_type) { 
   models = gsub(".Rdata","",list.files(paste0(model_dir,"/",data_type)))
   a = llply(models, function(model) 
@@ -435,9 +435,9 @@ write.table(df1, file=paste0(result_dir,"/rmse_train.csv"))
 
 ## 4) get test prediction results from models ----------------------
 preds0 = llply(names(result0), function(xi) {
-  m0 = m0s[[xi]]
+  feature = features[[xi]]
   res = extractPrediction(result0[[xi]], 
-    testX=m0[te_ind,], testY=cte, unkX=m0[-tr_ind0,]) # some features don't have test data
+    testX=feature[te_ind,], testY=cte, unkX=feature[-tr_ind0,]) # some features don't have test data
   return(res)
 }, .parallel=T)
 names(preds0) = names(result0)
@@ -547,5 +547,25 @@ graphics.off()
 xi = "features_raw"
 model = "enet"
 # finalsol = llply(preds, function(x) x$pred[is.na(x$obs)])
-class_final$GA = round(preds0[[xi]]$pred[is.na(preds0[[xi]]$obs) & preds0[[xi]]$model==model],1)
-write.csv(class_final, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
+submission$GA = round(preds0[[xi]]$pred[is.na(preds0[[xi]]$obs) & preds0[[xi]]$model==model],1)
+submission$GA[submission$GA<8] = 8
+submission$GA[submission$GA>42] = 42
+write.csv(submission, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
+
+
+
+#--------#--------#--------#--------#--------#--------#--------
+# 3: extra - ensembles ----------------------------------------
+#--------#--------#--------#--------#--------#--------#--------
+
+# train list of models
+parsl = unlist(llply(names(pars), function(x) {
+  llply(1:nrow(pars[[x]]), function(y) {
+    a = pars[[x]][y,]; colnames(a) = paste0(".", colnames(a))
+    caretModelSpec(method=x, tuneGrid=a)
+  })
+}), recursive=F)
+model_list = caretList(
+  y=ctr, x=mtr, trControl=fitcv, metric="RMSE", 
+  methodList=models, tuneList=parsl)
+
