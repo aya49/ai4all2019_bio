@@ -4,19 +4,19 @@ invent the future ai4all is a 2 week summer enrichment program for grade 10 & 11
 
 to-do:
 - download [data](https://drive.google.com/drive/folders/13xbyKcOuErvIgquKxvfz_MrHadLAztJZ?usp=sharing) to your "project directory"
-- download this directory
-- open and work on [bio2019_script.Rmd](bio2019_script.Rmd)
-
-workflow summary:
-- input: `HTA20_RMA.RData` (32830 genes x 367+368 train+test samples) matrix
-- output: `TeamX_SC1_prediction.csv` (368 predicted GA result for test samples); can submit max 5 results to leaderboard, and 1 final result as submission + code + write-up
-  - GAs are continuous values 8-42 weeks rounded to 1 decimal
-  - [how to participate](https://www.synapse.org/#!Synapse:syn18380862/wiki/590487)
-  - [leaderboard](https://www.synapse.org/#!Synapse:syn18380862/wiki/590488)
+  - `00_input`/: input data 
+  - `01_features`/: contains features transformed from `HTA20_RMA.RData`
+  - `02_models`/: all models tested are saved here organized by feature used; these are loaded back into scripts to generate visualizations and tables
+  - `03_results`/: resulting visualizations and tables are saved here
+  - `cvinds.Rdata`: indices used for cross validation in training, and testing
+- download this github repository
+- open and work on [bio2019_script.Rmd](bio2019_script.Rmd): R notebook with data processing, feature extraction, model selection and prediction of final results.
+  - input: `HTA20_RMA.RData` (32830 genes x 367+368 train+test samples) matrix
+  - output: `TeamX_SC1_prediction.csv` (368 predicted GA result for test samples; GAs are continuous values 8-42 weeks rounded to 1 decimal); can submit max 5 results to leaderboard, and 1 final result as submission + code + write-up
 
 links:
 - data `drive` (see description below): https://drive.google.com/drive/folders/1YmWcwDZ4f5B1ajF90gEeKbE60hN1-uBL?usp=sharing
-- challenge site: https://www.synapse.org/#!Synapse:syn18380862
+- challenge site ([how to participate](https://www.synapse.org/#!Synapse:syn18380862/wiki/590487), [leaderboard](https://www.synapse.org/#!Synapse:syn18380862/wiki/590488)): https://www.synapse.org/#!Synapse:syn18380862
 - ai4all sfu site: https://www.sfu.ca/computing/inventthefuture.html
 
 scripts:
@@ -59,9 +59,9 @@ program:
 
 Preterm birth (birth on or before 37 weeks of gestation) affects 15 million neonates per year and is the leading cause of infant morbidity and mortality. To understand whether or not a woman and her child is at risk of and design interventions to prevent preterm birth, clinicians require two key information points: gestational age (GA) and the condition of the fetus in relation to its GA. These help to time care, schedule/interpret antepartum tests, evaluate fetal growth, and thus possibly prevent preterm birth. 
 
-GA is currently determined by timing a woman¡¯s last menstrual period or by ultrasound. The former is the most reliable metric but can be inaccurate and subjective based on how a patient self manages her pregnancy. The latter is objective but is costly and less accurate if done prior to 14 weeks of pregnancy. An objective, noninvasive and less costly method to determine GA is by analyzing maternal whole-blood transcriptomics.
+GA is currently determined by timing a womanÂ¡Â¯s last menstrual period or by ultrasound. The former is the most reliable metric but can be inaccurate and subjective based on how a patient self manages her pregnancy. The latter is objective but is costly and less accurate if done prior to 14 weeks of pregnancy. An objective, noninvasive and less costly method to determine GA is by analyzing maternal whole-blood transcriptomics.
 
-Transcriptomics is a technology that studies an organism¡¯s transcriptome. The transcriptome encompasses all the RNA (ribonucleic acid) transcripts (more specifically messenger or mRNA¡¯s) created by replicating different genes in the genome. These RNA fragments are subsequently translated into proteins used to perform biological functions. In other words, transcriptomics is a study of how active each gene is, in contribution to a biological state, based on how many times the mRNA fragments in a sample map to each gene.
+Transcriptomics is a technology that studies an organismÂ¡Â¯s transcriptome. The transcriptome encompasses all the RNA (ribonucleic acid) transcripts (more specifically messenger or mRNAÂ¡Â¯s) created by replicating different genes in the genome. These RNA fragments are subsequently translated into proteins used to perform biological functions. In other words, transcriptomics is a study of how active each gene is, in contribution to a biological state, based on how many times the mRNA fragments in a sample map to each gene.
 
 The clinical question here is: what maternal whole-blood mRNA genes/probe/isoforms can be used to accurately determine gestational age. This result can guide more practical and less expensive whole-blood transcriptomic tests that target specific genes and their expression profiles. Computationally, the questions are then to determine what model can best produce accurate results while maintaining interpretability of which genes or features contribute to those results.
 
@@ -81,9 +81,7 @@ Deliverables
 - Project results: good feels
 
 
-### `data`/
-
-`00_input`/:
+### `00_input`/
 - `HTA20_RMA.RData`: maternal whole-blood preprocessed **(32830/925032 gene/probeset x 367 train + 368 test samples)** expression matrix
   - rownames: ENTREZ-gene(except for "_at" suffix)/probeset IDs
   - colnames: SampleID
@@ -108,13 +106,6 @@ Deliverables
 ![train data for sub-challenge 1](sc1_train.PNG)
 
 
-`01_features`/: contains features transformed from `HTA20_RMA.RData`
-
-`02_models`/: all models tested are saved here organized by feature used; these are loaded back into scripts to generate visualizations and tables
-
-`03_results`/: resulting visualizations and tables are saved here
-
-`cvinds.Rdata`: indices used for cross validation in training, and testing
 
 
 
