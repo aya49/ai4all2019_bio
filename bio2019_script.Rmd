@@ -14,7 +14,7 @@ output: html_notebook
 
 ##1. Preprocessing  
 
-In the first part we will work on the environment we will use. This means we will clean the environment, declare the directory of the project and install libraries.  
+In the first part we will work on the environment we will use. We will clean the environment, declare the project directory and install/load libraries.  
 
 
 ```{r, warning=FALSE, message=FALSE, error = FALSE  , results = 'hide' }
@@ -63,7 +63,7 @@ load(paste(input_dir,'script.RData',sep='/'))
 
 ```
 
-Next, we will load the input files. There are 3 files:
+Next, we will load the 3 input files:
 
 1. Sample Annotation file: 
 
@@ -73,10 +73,9 @@ Next, we will load the input files. There are 3 files:
 * Set: name of the source dataset;
 * Train: 1 for samples to be used for training, 0 for samples to be used for test;
 
-2. RNASEQ Data: each row is a gene and each column a patient 
+2. RNASEQ Data: each row is a gene and each column is a sample 
 
 *  probeset: gene ID
-*  pid: patient id 
 
 3. Submission template for the competition
 
@@ -159,9 +158,9 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
 
 ### Exercise 1: 
-1. What can we conclude from these plots above? 
-2. Why we don't have the correlation between the gene expression and GA for the testing set? 
-3. Can you think in any other intesresting plots or analysis? 
+1. What can we conclude from the plots above? 
+2. Why do we not see correlation between gene expression and GA for the test set? 
+3. Can you think of any other intesresting plots or analysis? 
 
 ```{r}
 #insert here a new plot or analysis you think is instering
@@ -176,14 +175,14 @@ Answer (delete):
 
 ##2. Features Extraction 
 
-The original dataset has 32830 genes expressions. However, from the plot of the correlation we already know that some of these genes aren't associate with GA. Besides, genes with a very low variance might don't contribute for the prediction of gestacional age. Also, large datasets might add noise to machine leanring models. 
+The original dataset has 32830 genes. However, from the correlation plot, we know that some of these genes aren't associate with GA. In addition, genes with low variance might not contribute towards prediction of gestational age. Also, large datasets contain noise that may affect the efficacy of our machine leanring models. 
 
-We will use 5 methods do extract features. 
+Therefore, we will use 5 methods to extract features.
 1. Elimination of 30% of genes with lowest variance; 
 2. Elimination of 30% of genes with lowest correlation with GA; 
-3. PCA
+3. PCA (principal component analysis)
 4. Random Forest 
-5. Autoenconder 
+5. Autoenconder
 
 ```{r, results='hide'}
 
@@ -237,7 +236,7 @@ write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
 
 ### Exercise 2: 
 1. What parameters do you think you could change? 
-2. Choose between PCA and Random Forest. Try to save a new features set with a different number of features. 
+2. Using PCA or Random Fores, try creating a new feature set by adjusting the number of features kept.
 
 ```{r}
 #feat.unique = predict(PrePCA,data2) #for pca OR
@@ -249,11 +248,11 @@ write.csv(feat.A, paste0(feat_dir,'/features_a.csv'), row.names = T)
 
 ##3. Machine Learning models
 
-In this section we will work which the Machine Learning Models. We have 5 different sets of features (RAW, PCA, RA, A, UNIQUE) and we will first work with 3 models: Linear Regression, RVM and Random Forest. The best model will be selected based on the difference between the values we observed on the training set for GA (Gestacional Age) and the predicted values for the combination of MODEL+FEATURE. The lowest is this difference on the validation set, the better. 
+In this section we will work with machine learning models. In the last section, we created 5 different sets of features (RAW, PCA, RA, A, UNIQUE). We will apply these features onto 3 models: Linear Regression, RVM (relevance vector machines), and Random Forest. The best feature+model combination will be selected based on RMSE (root mean square errer) scores, or the difference between the values we observed on the training set for GA (Gestacional Age) and the predicted GA values i.e. the lower the better.
 
-Before we begin to test the models, we need to set up an experimental framework to so that we can evaluate our results once they come out. One such technique is a resampling procedure called ```cvn```-fold cross validation (here we set ```cvn``` to 10).
+Before we begin to test the models, we need to set up an experimental framework so that we can evaluate our results once they come out. One such technique is a resampling procedure called ```cvn```-fold cross validation (here we set ```cvn``` to 10).
 
-Typically, data sets are split up into a train and test set; we extract these indices into the ```tr_ind``` and ```te_ind``` variables respectively. The former set of examples is used to train our model, which is later tested on the test set, a set of samples our model has not seen before. However, since we assume we do not have the GA for our test set, we would not know how our model performs on the test set.
+Typically, data sets are split up into a train and test set; we extract these indices into the ```train_index_``` and ```train_index_val``` variables respectively. The former set of samples is used to train our model, which is later tested on the test set, a set of samples our model has not seen before. However, since we assume we do not have the GA for our test set, we would not know how our model performs on the test set.
 
 Therefore, we further split the train set into ```cvn```=10 equal sized chunks. Since we know the Ga to all our train samples, we can evaluate the model a total of 10 times, each time training the model 9 of the chunks and testing the model on 1 of the chunks. Thereafter, these metrics can be combined (e.g. via a mean) to produce an appropriate evaluation of the model.
 
@@ -261,7 +260,7 @@ Therefore, we further split the train set into ```cvn```=10 equal sized chunks. 
 1. Why do we want to perform cross validation? Why would we cross validating the model ```cvn``` times over just 1 time?
 
 Answer (delete): 
-1. Evaluation becomes more robust with resampling
+1. it's robust!
 
 
 ```{r}
@@ -284,7 +283,6 @@ require(Metrics)
 
 ```
 
-The RMSE (root mean squared error) is a metric that indicates how different our models' predicted GA are compared to the true GA. In other words, the smaller the RMSE, the better.This will be the metric used to compare the models we will be working on. 
 
 ###3.1 Linear Regression 
 
@@ -323,7 +321,7 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
 ```
 
 ### Exercise 4: 
-Calculate the predictions for features_val and ga_val using linear regression. With the predicted values, make a plot predictions_m1_val and ga_val
+Calculate the predictions for ```features_val``` and ```ga_val``` using linear regression. With the predicted values, make a plot ```predictions_m1_val``` and ```ga_val```
 ```{r, warning=FALSE}
 #predictions_m1_val = predict()
 #rmse()
@@ -364,7 +362,7 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m2))+
 
 ```
 ### Exercise 5: 
-Calculate the predictions for features_val and ga_val using rvm. With the predicted values, make a plot predictions_m1_val and ga_val
+Calculate the predictions for ```features_val``` and ```ga_val``` using rvm. With the predicted values, make a plot ```predictions_m1_val``` and ```ga_val```
 ```{r, warning=FALSE}
 #predictions_m2_val = predict()
 #rmse()
@@ -397,7 +395,7 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m3.predictions))+
 
 ```
 ### Exercise 6: 
-Calculate the predictions for features_val and ga_val using Random Forest. With the predicted values, make a plot predictions_m1_val and ga_val
+Calculate the predictions for ```features_val``` and ```ga_val``` using Random Forest. With the predicted values, make a plot ```predictions_m1_val``` and ```ga_val```
 ```{r, warning=FALSE}
 #predictions_m3_val = predict()
 #rmse()
@@ -412,7 +410,7 @@ Calculate the predictions for features_val and ga_val using Random Forest. With 
 
 
 ### Exercise 7:
-Repite the Linear Regression, SCM and Random Forest with 2 other sets of features: 'raw', 'ra' for random forest or 'a' for autoencoder and the 'unique' set of features you made on  Exercise 2. From the set of features you choose, which one have the best result? Why?
+Repeat Linear Regression, RVM, and Random Forest with 2 other sets of features: 'raw', 'ra' for random forest or 'a' for autoencoder and the 'unique' set of features you made in Exercise 2. From the set of features you chose, which one had the best result? Why?
 
 SET OF FEATURES 1
 ```{r, warning=FALSE}
@@ -492,7 +490,7 @@ ggplot(plotdata, aes(x = ga_,y = predictions_m1))+
 ```
 
 ###Exercise 8: 
-Create a plot to identify which model or set of features is the best between so far. 
+Create a plot to identify which model or set of features is the best so far. 
 
 ```{r, warning=FALSE}
 #Saving the results of the predictions when the .unique features were used 
@@ -538,7 +536,7 @@ features_val = features[train_index_val,]
 ```
 
 
-Then we run this chunk that will load the model case the model is available or run the model with the features and model specified.
+Then we run this chunk to load or run the model with the features and model specified.
 ```{r}
 # model options:
 #enet, foba, gaussprPolyg, gaussprRadial,glmnet, icr, kernelpls, krlsRadial, lars2, lasso, leapBackward, leapForward, leapSeq, nnls, partDSA, pls , plsRglm, rbf, rpart, rqlasso, rvmPoly, rvmRadial, simpls, spikeslab, spls, svmPoly, svmRadial, svmRadialCost, svmRadialSigma, widekernelpls, rqnc, nodeHarvest, mlpML, xgbDART
@@ -596,9 +594,9 @@ ggsave(filename = paste(result_dir,'/','predictions-',title,'.png',sep=''),grid1
 
 
 ### Exercise 9: 
-Explore more combinations of models and features. Keep the results of the top 3 models you found. Discuss with your colleagues their results. Answer: 
-* Are they similar? How you defined which models were the best? 
-* Can you think in a more efficient way to compare all the models available? 
+Explore more combinations of models and features. Keep the results of the top 3 models you find. Discuss with your colleagues the results.
+* Are they similar? How did you define the "best" models? 
+* Can you think of a more efficient way to compare all the models available? 
 
 
 ####Model 1 
@@ -676,11 +674,11 @@ ggsave(filename = paste(result_dir,'/','predictions-',title,'.png',sep=''),grid1
 ```
 
 
-#Prediction For the Competition 
+#Prediction for competition submission
 
-As all Data SCience/Machine Learning project, we have spend most of the time so far procesing the data, exploring the dataset, creating/selecting features, exploring different models to define which one is the best option for our main task: predict the Gestacional Age of our testing set. 
+As with all Data Science/Machine Learning project, we have spent most of our time on procesing the data, exploring the dataset, creating/selecting features, and exploring different models to figure out which pipeline is the best at answering our main question: predict the GA of our testing set. 
 
-Now, we will finale create the predictions for our test set. 
+Now, we will create the final predictions for our test set.
 
 ```{r}
 #RUN HERE ONCE MORE THE MODEL YOU THINK IS THE BEST
