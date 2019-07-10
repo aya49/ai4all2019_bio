@@ -28,6 +28,7 @@ model_dir = paste0(root, "/02_models") # model directory
 result_dir = paste0(root, "/03_results") # stats/plots directory
 sapply(c(input_dir,feat_dir, model_dir, result_dir), 
        function(x) dir.create(x, showWarnings=F))
+cvinds_path = paste0(root,"/cvinds.Rdata") # train/test indices
 
 
 ## load packages
@@ -42,7 +43,7 @@ pkgs = c("Rfast", "stringr", "plyr", "dplyr", "Matrix", # var, str_, llply, etc
          "RSNNS", "spikeslab") # ml
 pkgs_ui = setdiff(pkgs, rownames(installed.packages()))
 if (length(pkgs_ui) > 0) install.packages(pkgs_ui, verbose=F)
-sapply(pkgs, require, charaga_valr.only=T)
+sapply(pkgs, require, character.only=T)
 
 
 ## script options
@@ -101,7 +102,7 @@ p2 <- ggplot(data_expl, aes(x=mean, y=variance)) +
   ylab('Variance')+ labs(title='(b)')
 
 p3 <- ggplot(data_expl, aes(x=corr_p)) + 
-  geom_histogram(fill='lightgreen'GA)+
+  geom_histogram(fill='lightgreen')+
   xlab('Pearson Correlation between Genes and Gestacional Age')+ labs(title='(c)')
 
 p4 <- ggplot(data_expl, aes(x=corr_p, y=corr_s)) + 
@@ -157,10 +158,11 @@ grid.arrange(p1, p2, p3, p4, nrow=2)
 
 
 ## 1 and 2) remove genes with low variance and absolute correlation
-# keep = subset(data_expl, variance>quantile(data_expl$variance, 0.7) & corr_p>quantile(data_expl$corr_p, 0.3) & mean>quantile(mean,0.5))
 data_expl$corr_p = abs(data_expl$corr_p)
-keep = subset(data_expl, variance>quantile(data_expl$variance, 0.3) & corr_p>quantile(data_expl$corr_p, 0.3))
+# keep = subset(data_expl, variance>quantile(data_expl$variance, 0.7) & corr_p>quantile(data_expl$corr_p, 0.3) & mean>quantile(mean,0.5))
+keep = subset(data_expl, variance>quantile(data_expl$variance, 0.3) & corr_p>quantile(data_expl$corr_p, 0.3) & mean>quantile(mean,0.2))
 data2 = subset(data0, select=keep$col)
+data2 = scale(data2)
 write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T) # save for future use
 
 
@@ -216,7 +218,6 @@ names(features) = gsub(".csv","",feat_paths)
 
 
 ## 1) prep cvn-fold cross validation & rmse function ----------
-cvinds_path = paste0(root,"/cvinds.Rdata")
 if (!file.exists(cvinds_path)) {
   cvn = 10
   train_index = which(meta$Train==1) #selecting only the training examples
@@ -572,15 +573,53 @@ write.csv(submission, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
 #--------#--------#--------#--------#--------#--------#--------
 # 3: extra - ensembles ----------------------------------------
 #--------#--------#--------#--------#--------#--------#--------
+load(cvinds_path)
+fitcv = trainControl(method="cv", number=10)
+rmse = function(x,y) sqrt(mean((x-y)^2))
 
-# train list of models
-parsl = unlist(llply(names(pars), function(x) {
-  llply(1:nrow(pars[[x]]), function(y) {
-    a = pars[[x]][y,]; colnames(a) = paste0(".", colnames(a))
-    caretModelSpec(method=x, tuneGrid=a)
-  })
-}), recursive=F)
+# load features
+xi = "features_pca"
+feature = read.csv(paste0(feat_dir,"/", xi,".csv"))
+rownames(feature) = feature[,1]; feature = as.matrix(feature[,-1])
+mtr = feature[train_index_tr,]
+mte = feature[train_index_val,]
+mte0 = feature[test_index,]
+
+# EDIT HERE - train models; note some are classification models too
+# exercise: pick and choose a few models to ensemble
+models_reg = c(
+  "enet", # 8.5
+  "glmnet", # 8.5
+  "kernelpls", # 8.5
+  "krlsRadial", # 8.5
+  "lars2", # 8.5
+  "nnls", # 8.5
+  "rbf", # 8.4
+  "rqlasso", # 8.4
+  "rvmPoly", # 8.5
+  "rvmRadial", # 8.5
+  "simpls", "spikeslab", # "spls", # 8.5; spls takes a bit longer 950
+  "rqnc" # 8.4
+)
 model_list = caretList(
-  y=ga_tr, x=mtr, trControl=fitcv, metric="RMSE", 
-  methodList=models, tuneList=parsl)
+  y=ga_tr, x=mtr, trControl=fitcv, metric="RMSE",
+  methodList=models_reg, continue_on_fail=T)
 
+# weighted linear combination of model predictions
+ensemble = caretEnsemble(
+  model_list, 
+  metric="RMSE",
+  trControl=fitcv)
+summary(ensemble)
+
+# predict test set GA; get rmse
+# exercise: do ensembling methods perform better? why do you think that is?
+ens_preds = predict(ensemble, newdata=mte)
+rmse(ens_preds, ga_val)
+
+# save as submission
+ens_predfinal = predict(ensemble, newdata=mte0)
+submission$GA = round(ens_predfinal,1)
+submission$GA[submission$GA<8] = 8
+submission$GA[submission$GA>42] = 42
+write.csv(submission, file=paste0(result_dir,"/submission_ensemble.csv"))
