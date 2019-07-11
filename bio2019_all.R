@@ -180,7 +180,7 @@ write.csv(feat.pca, paste0(feat_dir,'/features_pca.csv'), row.names=T)
 data1 = subset(data1, select =keep$col)
 data1 = data.frame(ga_tr0, data1)
 if (!exists('PreRF')) {
-  PreRF = caret::train(y=ga_tr0, x=data1[,-1], method='ranger', importance='impurity')
+  PreRF = caret::train(y=data1[,1], x=data1[,-1], method='ranger', importance='impurity')
   PreRF.i = varImp(PreRF)$importance
 } else {
   PreRF.i = varImp(PreRF)$importance
@@ -299,7 +299,7 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   "lars2", # 8.5      
   "lasso", # 8.7     
   "leapBackward", "leapForward", "leapSeq", # 8.5
-  "lm","lmStepAIC", # 10
+  "lm", #"lmStepAIC", # 10
   # "logicBag",   "logreg", "M5","M5Rules", # no pkg
   # "mlp", # 10
   # "mlpKerasDecay","mlpKerasDropout",  # error on run
@@ -350,7 +350,7 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   # "WM", # 11
   "rqnc", # 8.4
   "nodeHarvest", # 8.6
-  "mlpML" # 8.5
+  # "mlpML" # 8.5
   # "xgbDART" # extreme gradient boosting is good; "xgbLinear", # takes too long
   # "xgbTree",    "xyf"
 )
@@ -366,7 +366,7 @@ pars = list(
   # ANFIS=expand.grid(max.iter=c(10,30,60,100)), # adaptive-network-based fuzzy inference system
   # avNNet=expand.grid(size=c(50,100), decay=10^runif(5, min = -5, 1), bag=T),
   #brnn=expand.grid(neurons=c(50,100)),
-  enet=expand.grid(lambda=10^runif(5, min=-5, 1), fraction=runif(5, min=0, max=1)),
+  enet=expand.grid(lambda=10^runif(3, min=-5, 1), fraction=runif(3, min=0, max=1)),
   # neuralnet=expand.grid(layer1=c(50,100),layer2=c(50,100),layer3=c(50,100)),
   # blackboost=expand.grid(maxdepth=c(1,3,6,10)),
   # xgbDART=expand.grid(nrounds, max_depth, eta, gamma, subsample, colsample_bytree, rate_drop, skip_drop, min_child_weight),
