@@ -159,11 +159,14 @@ grid.arrange(p1, p2, p3, p4, nrow=2)
 
 ## 1 and 2) remove genes with low variance and absolute correlation
 data_expl$corr_p = abs(data_expl$corr_p)
-# keep = subset(data_expl, variance>quantile(data_expl$variance, 0.7) & corr_p>quantile(data_expl$corr_p, 0.3) & mean>quantile(mean,0.5))
 keep = subset(data_expl, variance>quantile(data_expl$variance, 0.3) & corr_p>quantile(data_expl$corr_p, 0.3) & mean>quantile(mean,0.2))
 data2 = subset(data0, select=keep$col)
 data2 = scale(data2)
-write.csv(data2, paste0(feat_dir,'/features_raw.csv'), row.names=T) # save for future use
+
+keep1 = subset(data_expl, variance>quantile(data_expl$variance, 0.8) & corr_p>quantile(data_expl$corr_p, 0.8) & mean>quantile(mean, 0.8))
+data3 = subset(data0, select=keep1$col)
+data3 = scale(data3)
+write.csv(data3, paste0(feat_dir,'/features_raw.csv'), row.names=T) # save for future use
 
 
 ## 3) PCA -----------------------------------------------------
@@ -348,8 +351,8 @@ models = c(# "ANFIS", # takes too long; RMSE 20
   # "treebag", # 9.3   
   "widekernelpls", # 8.5
   # "WM", # 11
-  "rqnc", # 8.4
-  "nodeHarvest", # 8.6
+  # "rqnc", # 8.4
+  "nodeHarvest" # 8.6
   # "mlpML" # 8.5
   # "xgbDART" # extreme gradient boosting is good; "xgbLinear", # takes too long
   # "xgbTree",    "xyf"
@@ -429,7 +432,7 @@ df1 = ldply (names(result), function(i) {
     , stringsAsFactors=F)
 })
 # df1
-write.table(df1, file=paste0(result_dir,"/rmse_train.csv"))
+write.table(df1, file=paste0(result_dir,"/rmse_train.csv"), sep=",")
 
 ## 4) print all results as prediction plots -----------------------
 # result = unlist(result0, recursive=F)
@@ -484,9 +487,14 @@ rmsedf = ldply(names(preds0), function(xi) {
   ldply(unique(x$model), function(mi) {
     mii = x$model==mi
     pr = x$pred[mii]
-    data.frame(rmse=c(rmse(pr[1:length(train_index_tr)], ga_tr),
-                      rmse(pr[(length(train_index_tr)+1):(length(train_index_tr)+length(train_index_val))], ga_val),
-                      rmse(pr[1:length(train_index)], meta$GA[append(train_index_tr,train_index_val)])),
+    pr1 = pr[1:length(train_index_tr)]
+    pr1[pr1<8] = 8; pr1[pr1>42] = 42
+    pr2 = pr[(length(train_index_tr)+1):(length(train_index_tr)+length(train_index_val))]
+    pr2[pr2<8] = 8; pr2[pr2>42] = 42
+    pr3 = pr[1:length(train_index)]
+    pr3[pr3<8] = 8; pr3[pr3>42] = 42
+    data.frame(rmse=c(rmse(pr1, ga_tr), rmse(pr2, ga_val),
+                      rmse(pr3, meta$GA[append(train_index_tr,train_index_val)])),
                feature=rep(xi,3), model=rep(mi,3), type=c("train","test","all"))
   })
 })
@@ -566,7 +574,7 @@ model = "enet"
 submission$GA = round(preds0[[xi]]$pred[is.na(preds0[[xi]]$obs) & preds0[[xi]]$model==model],1)
 submission$GA[submission$GA<8] = 8
 submission$GA[submission$GA>42] = 42
-write.csv(submission, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"))
+write.csv(submission, file=paste0(result_dir,"/TeamX_SC1_prediction.csv"), row.names=F)
 
 
 
@@ -622,4 +630,4 @@ ens_predfinal = predict(ensemble, newdata=mte0)
 submission$GA = round(ens_predfinal,1)
 submission$GA[submission$GA<8] = 8
 submission$GA[submission$GA>42] = 42
-write.csv(submission, file=paste0(result_dir,"/submission_ensemble.csv"))
+write.csv(submission, file=paste0(result_dir,"/submission_ensemble.csv"), row.names=F)
