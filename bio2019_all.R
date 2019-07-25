@@ -586,7 +586,7 @@ fitcv = trainControl(method="cv", number=10)
 rmse = function(x,y) sqrt(mean((x-y)^2))
 
 # load features
-xi = "features_pca"
+xi = "features_pca" # EDIT HERE
 feature = read.csv(paste0(feat_dir,"/", xi,".csv"))
 rownames(feature) = feature[,1]; feature = as.matrix(feature[,-1])
 mtr = feature[train_index_tr,]
@@ -595,7 +595,7 @@ mte0 = feature[test_index,]
 
 # EDIT HERE - train models; note some are classification models too
 # exercise: pick and choose a few models to ensemble
-models_reg = c(
+models_reg = c( # EDIT HERE
   "enet", # 8.5
   "glmnet", # 8.5
   "kernelpls", # 8.5
