@@ -26,6 +26,7 @@ links:
 - data `drive` (see description below): https://drive.google.com/drive/folders/1YmWcwDZ4f5B1ajF90gEeKbE60hN1-uBL?usp=sharing
 - challenge site ([how to participate](https://www.synapse.org/#!Synapse:syn18380862/wiki/590487), [leaderboard](https://www.synapse.org/#!Synapse:syn18380862/wiki/590488)): https://www.synapse.org/#!Synapse:syn18380862
 - ai4all sfu site: https://www.sfu.ca/computing/inventthefuture.html
+- ai4all sfu 2019 schedule: [booklet](2019_ITF_Booklet_Digital-8_6421.pdf)
 
 scripts:
 1. [bio2019_all.R](bio2019_all.R) (RUN ME FIRST): script that generates all features and model results found in `drive`/`data`/ (except input `00_input`); section on feature generation taken from [bio2019_FeatureExtraction.R](bio2019_FeatureExtraction.R)
