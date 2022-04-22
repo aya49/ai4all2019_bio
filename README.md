@@ -1,8 +1,34 @@
-# ai4all2019_bio
+# Immune clock of pregnancy: sub-challenge 1 - predicting gestational age
 
 aya43@sfu.ca; raquel_aoki@sfu.ca
 
-invent the future ai4all is a 2 week summer enrichment program for grade 10 & 11 girls
+Invent the future ai4all is a 2 week summer enrichment program for grade 10 & 11 girls. This github repository contains materials for the computational biology project group.
+
+Preterm birth (birth on or before 37 weeks of gestation) affects 15 million neonates per year and is the leading cause of infant morbidity and mortality. To understand whether or not a woman and her child is at risk of and design interventions to prevent preterm birth, clinicians require two key information points: gestational age (GA) and the condition of the fetus in relation to its GA. These help to time care, schedule/interpret antepartum tests, evaluate fetal growth, and thus possibly prevent preterm birth. 
+
+GA is currently determined by timing a woman¡¯s last menstrual period or by ultrasound. The former is the most reliable metric but can be inaccurate and subjective based on how a patient self manages her pregnancy. The latter is objective but is costly and less accurate if done prior to 14 weeks of pregnancy. An objective, noninvasive and less costly method to determine GA is by analyzing maternal whole-blood transcriptomics.
+
+Transcriptomics is a technology that studies an organism¡¯s transcriptome. The transcriptome encompasses all the RNA (ribonucleic acid) transcripts (more specifically messenger or mRNA¡¯s) created by replicating different genes in the genome. These RNA fragments are subsequently translated into proteins used to perform biological functions. In other words, transcriptomics is a study of how active each gene is, in contribution to a biological state, based on how many times the mRNA fragments in a sample map to each gene.
+
+The clinical question here is: what maternal whole-blood mRNA genes/probe/isoforms can be used to accurately determine gestational age. This result can guide more practical and less expensive whole-blood transcriptomic tests that target specific genes and their expression profiles. Computationally, the questions are then to determine what model can best produce accurate results while maintaining interpretability of which genes or features contribute to those results.
+
+This project is based on sub-challenge 1 of the preterm birth prediction (transcriptomics) challenge ([link](https://www.synapse.org/#!Synapse:syn18380862), [webinar](https://drive.google.com/file/d/1O1ESxtGLoKHPRJI9HIY5SSNNUBKrlUx-/view?usp=sharing)). It expands on a previous paper (GSE113966 DOI: 10.1126/science.aar3819 [pdf](GSE113966.pdf), [supplement](GSE113966_supp.pdf)) by utilizing a larger data set with heterogeneous patients (samples from women who 1. gave normal birth, 2. had early preeclampsia, and 3. spontaneous preterm delivery or rupture membrane; versus normal birth subjects only), genome-wide (versus targeted gene), whole-blood (versus cell-free mRNA) transcriptomics, etc.
+
+The students will be familiarized with the transcriptomics data type and how this can be preprocessed and used to predict a continuous outcome GA. Students will be able to learn about how machine learning algorithms can be engineered into pipelines in application to real-world problems -- in this case to create equal and inclusive quality care for women of all birth condition whom we may not have GA information on.
+
+Key Learning Opportunities
+- Data preprocessing: feature selection, dimensionality reduction, de-noising
+- Model construction: for predicting continuous value gestational age in weeks
+- Model evaluation: CV (cross validation) experiments, RMSE (root mean square error) scoring
+- Interpretation techniques: extract important features and visualize their inter-relations and relation with results
+
+Deliverables
+- Domain knowledge: demonstrate the ability to understand and communicate purpose, methods, results, implications, and possible extensions of the project
+- Computational knowledge: recognize generalizability of each method used in pipeline and how they can be engineered and customized for specific data sets
+- Project results: good feels
+
+
+## itinerary
 
 to-do:
 - download [data](https://drive.google.com/drive/folders/13xbyKcOuErvIgquKxvfz_MrHadLAztJZ?usp=sharing) to your "project directory"
@@ -64,33 +90,7 @@ program:
 - 2019-07-26 project group presentation
 
 
-## project: sub-challenge 1 - gestational age prediction
-
-Preterm birth (birth on or before 37 weeks of gestation) affects 15 million neonates per year and is the leading cause of infant morbidity and mortality. To understand whether or not a woman and her child is at risk of and design interventions to prevent preterm birth, clinicians require two key information points: gestational age (GA) and the condition of the fetus in relation to its GA. These help to time care, schedule/interpret antepartum tests, evaluate fetal growth, and thus possibly prevent preterm birth. 
-
-GA is currently determined by timing a woman¡¯s last menstrual period or by ultrasound. The former is the most reliable metric but can be inaccurate and subjective based on how a patient self manages her pregnancy. The latter is objective but is costly and less accurate if done prior to 14 weeks of pregnancy. An objective, noninvasive and less costly method to determine GA is by analyzing maternal whole-blood transcriptomics.
-
-Transcriptomics is a technology that studies an organism¡¯s transcriptome. The transcriptome encompasses all the RNA (ribonucleic acid) transcripts (more specifically messenger or mRNA¡¯s) created by replicating different genes in the genome. These RNA fragments are subsequently translated into proteins used to perform biological functions. In other words, transcriptomics is a study of how active each gene is, in contribution to a biological state, based on how many times the mRNA fragments in a sample map to each gene.
-
-The clinical question here is: what maternal whole-blood mRNA genes/probe/isoforms can be used to accurately determine gestational age. This result can guide more practical and less expensive whole-blood transcriptomic tests that target specific genes and their expression profiles. Computationally, the questions are then to determine what model can best produce accurate results while maintaining interpretability of which genes or features contribute to those results.
-
-This project is based on sub-challenge 1 of the preterm birth prediction (transcriptomics) challenge ([link](https://www.synapse.org/#!Synapse:syn18380862), [webinar](https://drive.google.com/file/d/1O1ESxtGLoKHPRJI9HIY5SSNNUBKrlUx-/view?usp=sharing)). It expands on a previous paper (GSE113966 DOI: 10.1126/science.aar3819 [pdf](GSE113966.pdf), [supplement](GSE113966_supp.pdf)) by utilizing a larger data set with heterogeneous patients (samples from women who 1. gave normal birth, 2. had early preeclampsia, and 3. spontaneous preterm delivery or rupture membrane; versus normal birth subjects only), genome-wide (versus targeted gene), whole-blood (versus cell-free mRNA) transcriptomics, etc.
-
-The students will be familiarized with the transcriptomics data type and how this can be preprocessed and used to predict a continuous outcome GA. Students will be able to learn about how machine learning algorithms can be engineered into pipelines in application to real-world problems -- in this case to create equal and inclusive quality care for women of all birth condition whom we may not have GA information on.
-
-Key Learning Opportunities
-- Data preprocessing: feature selection, dimensionality reduction, de-noising
-- Model construction: for predicting continuous value gestational age in weeks
-- Model evaluation: CV (cross validation) experiments, RMSE (root mean square error) scoring
-- Interpretation techniques: extract important features and visualize their inter-relations and relation with results
-
-Deliverables
-- Domain knowledge: demonstrate the ability to understand and communicate purpose, methods, results, implications, and possible extensions of the project
-- Computational knowledge: recognize generalizability of each method used in pipeline and how they can be engineered and customized for specific data sets
-- Project results: good feels
-
-
-### `00_input`/
+### dataset: `00_input`/
 - `HTA20_RMA.RData`: maternal whole-blood preprocessed **(32830/925032 gene/probeset x 367 train + 368 test samples)** expression matrix
   - rownames: ENTREZ-gene(except for "_at" suffix)/probeset IDs
   - colnames: SampleID
