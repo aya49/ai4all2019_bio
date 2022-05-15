@@ -31,7 +31,7 @@ Deliverables
 ## itinerary
 
 to-do:
-- download [data](https://drive.google.com/drive/folders/13xbyKcOuErvIgquKxvfz_MrHadLAztJZ?usp=sharing) to your "project directory"
+- download [data](https://drive.google.com/file/d/1-cnU4SbXujICW4OYbLlFrpupJd-cr8dj/view?usp=sharing) to your "project directory"
   - `00_input`/: input data (see [below](#00_input))
   - `01_features`/: contains features transformed from `00_input`/`HTA20_RMA.RData`
   - `02_models`/: all models tested are saved here organized by feature used; these are loaded back into scripts to generate visualizations and tables
@@ -49,7 +49,7 @@ friday:
 - 4-5pm closing ceremonies
 
 links:
-- data `drive` (see description below): https://drive.google.com/drive/folders/1YmWcwDZ4f5B1ajF90gEeKbE60hN1-uBL?usp=sharing
+- data `drive` (see description below): https://drive.google.com/file/d/1-cnU4SbXujICW4OYbLlFrpupJd-cr8dj/view?usp=sharing
 - challenge site ([how to participate](https://www.synapse.org/#!Synapse:syn18380862/wiki/590487), [leaderboard](https://www.synapse.org/#!Synapse:syn18380862/wiki/590488)): https://www.synapse.org/#!Synapse:syn18380862
 - ai4all sfu site: https://www.sfu.ca/computing/inventthefuture.html
 - ai4all sfu 2019 schedule: [booklet](2019_ITF_Booklet_Digital-8_6421.pdf)
